@@ -1,0 +1,2642 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>向日葵班班 · 學習存摺與親師生互動系統 </title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome 圖示庫 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- QRCode.js 生成庫 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- Canvas Confetti 慶祝特效庫 -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    @media print {
+      .no-print { display: none !important; }
+      .print-only { display: block !important; }
+      body { background: white !important; color: black !important; }
+      .page-break { page-break-inside: avoid; }
+    }
+    .print-only { display: none; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    
+    @keyframes heroFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-7px); }
+    }
+    .hero-avatar-anim {
+      animation: heroFloat 3.2s ease-in-out infinite;
+    }
+    @keyframes wingFlap {
+      0%, 100% { transform: rotate(0deg); }
+      50% { transform: rotate(6deg) scale(1.05); }
+    }
+    .wing-anim-l {
+      transform-origin: 90% 70%;
+      animation: wingFlap 2.2s ease-in-out infinite;
+    }
+    .wing-anim-r {
+      transform-origin: 10% 70%;
+      animation: wingFlap 2.2s ease-in-out infinite alternate;
+    }
+  </style>
+</head>
+<body class="bg-amber-50/40 text-slate-800 min-h-screen font-sans antialiased flex flex-col">
+
+  <header class="no-print bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white shadow-md sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-4 py-2.5 flex flex-wrap justify-between items-center gap-3">
+      <div class="flex items-center space-x-3 cursor-pointer" onclick="switchView('student'); playSound('click');">
+        <div class="w-11 h-11 rounded-2xl overflow-hidden bg-white shadow-md border-2 border-white flex items-center justify-center flex-shrink-0">
+          <img src="0716-1.png" alt="向日葵班班" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/100x100/f59e0b/ffffff?text=🌻';">
+        </div>
+        <div>
+          <h1 class="text-lg font-black tracking-wide flex items-center gap-1.5 drop-shadow-sm">
+            🌻 向日葵班班 · 學習存摺
+          </h1>
+          <div class="flex items-center gap-2">
+            <p class="text-xs text-amber-100 font-medium">音效特效版 · 獎勵兌換</p>
+            <span id="syncStatusBadge" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-white/20 text-white transition backdrop-blur-sm">
+              <span class="w-2 h-2 rounded-full bg-emerald-300 animate-pulse"></span> 連線中...
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-2 text-sm">
+        <div id="teacherNavControls" class="flex items-center space-x-2 bg-black/15 p-1 rounded-2xl backdrop-blur-sm border border-white/20">
+          <button id="syncNowBtn" onclick="fetchFromGoogleSheets(true); playSound('click');" class="px-2.5 py-1.5 rounded-xl font-medium text-amber-100 hover:text-white hover:bg-white/20 transition flex items-center gap-1.5 text-xs" title="向 Google 試算表同步最新資料">
+            <i class="fa-solid fa-arrows-rotate" id="syncSpinner"></i> 同步試算表
+          </button>
+          <button id="navStudentBtn" onclick="switchView('student'); playSound('click');" class="px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 bg-white text-orange-600 shadow-sm">
+            <i class="fa-solid fa-mobile-screen"></i> 學生卡片
+          </button>
+          <button id="navAdminBtn" onclick="requestAdminAccess('admin'); playSound('click');" class="px-3 py-1.5 rounded-xl font-medium transition flex items-center gap-1.5 text-amber-100 hover:text-white hover:bg-white/20">
+            <i class="fa-solid fa-lock" id="adminLockIcon"></i> 教師後台
+          </button>
+          <button id="navPrintBtn" onclick="requestAdminAccess('print'); playSound('click');" class="px-3 py-1.5 rounded-xl font-medium transition flex items-center gap-1.5 text-amber-100 hover:text-white hover:bg-white/20">
+            <i class="fa-solid fa-qrcode"></i> QR Code 列印
+          </button>
+          <button id="navLogoutBtn" onclick="logoutAdmin(); playSound('click');" class="hidden px-2.5 py-1.5 rounded-xl font-medium text-rose-200 hover:text-white hover:bg-rose-600/60 transition" title="登出後台">
+            <i class="fa-solid fa-right-from-bracket"></i>
+          </button>
+        </div>
+
+        <button id="studentRefreshBtn" onclick="fetchFromGoogleSheets(true); playSound('click');" class="hidden bg-white/20 hover:bg-white/30 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-white/30 shadow-sm">
+          <i class="fa-solid fa-rotate-right"></i> 重新載入
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-24 opacity-0 transition-all duration-300 pointer-events-none">
+    <div class="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center space-x-3 border border-slate-700 max-w-sm">
+      <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-lg flex-shrink-0"></i>
+      <span id="toastMsg" class="text-xs sm:text-sm font-medium leading-tight">訊息通知</span>
+    </div>
+  </div>
+
+  <main class="flex-grow max-w-6xl w-full mx-auto p-4 sm:p-6 md:p-8">
+
+    <section id="studentView" class="block">
+
+      <!-- 🌻 教師管理的 YouTube 班級影片專區 (具備本地安全防護與一鍵前往觀看) -->
+      <div id="classVideoContainer" class="max-w-md mx-auto mb-5 bg-slate-900 rounded-3xl overflow-hidden shadow-xl border-2 border-amber-300/60 relative">
+        <div class="bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2 text-white flex justify-between items-center text-xs font-bold">
+          <span class="flex items-center gap-1.5"><i class="fa-solid fa-clapperboard text-amber-200"></i> 向日葵班班 · 導師指定影片</span>
+          <span class="bg-white/20 px-2.5 py-0.5 rounded-full text-[10px]">指定播放中</span>
+        </div>
+        <div class="relative w-full aspect-video bg-black flex items-center justify-center">
+          <div id="youtubePlayerBox" class="w-full h-full flex flex-col items-center justify-center p-4 text-center">
+            <!-- 動態載入播放器或安全按鈕 -->
+          </div>
+        </div>
+      </div>
+
+      <div class="max-w-md mx-auto mb-4 bg-white rounded-3xl overflow-hidden shadow-lg border border-amber-200/80 transition hover:shadow-xl">
+        <div class="relative w-full aspect-square max-h-72 bg-gradient-to-b from-amber-100 to-amber-50 flex items-center justify-center overflow-hidden">
+          <img src="0716-1.png" alt="向日葵班班首頁插畫" class="w-full h-full object-contain p-2" onerror="this.onerror=null; this.src='https://placehold.co/400x300/f59e0b/ffffff?text=🌻+Sun+Flower';">
+          <div class="absolute bottom-2 right-3 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full shadow-sm text-[11px] font-black text-amber-900 border border-amber-200 flex items-center gap-1">
+            <i class="fa-solid fa-seedling text-emerald-500"></i> Sun Flower Class
+          </div>
+        </div>
+      </div>
+
+      <div class="max-w-md mx-auto mb-5 bg-gradient-to-br from-orange-500 via-amber-500 to-amber-600 rounded-3xl p-4 sm:p-5 text-white shadow-lg border border-amber-300/40 relative overflow-hidden">
+        <div class="flex items-center justify-between mb-3 relative z-10">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-white/20 backdrop-blur-md border border-white/30 text-white">
+            <i class="fa-solid fa-bullhorn text-amber-200 animate-bounce"></i> 班級重要提醒
+          </span>
+          <span id="currentDateDisplay" class="text-xs text-amber-100 font-mono font-semibold">2026/09/01</span>
+        </div>
+
+        <div id="countdownBannerBox" class="relative z-10 bg-white/15 backdrop-blur-md rounded-2xl p-3.5 border border-white/25 mb-3 shadow-inner">
+          <div class="flex justify-between items-start gap-2">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span id="countdownBadge" class="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-xs">倒數中</span>
+                <span id="countdownEventTag" class="bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">考試測驗</span>
+              </div>
+              <h3 id="countdownEventTitle" class="text-base font-black text-white drop-shadow-sm line-clamp-1">即將到來重要事件</h3>
+              <p id="countdownEventDesc" class="text-xs text-amber-100 mt-0.5 line-clamp-1">請同學記得預習並準備文具</p>
+            </div>
+            <div class="text-right flex-shrink-0 bg-white/25 px-3 py-1.5 rounded-2xl border border-white/30 text-center min-w-[72px]">
+              <div class="text-[10px] text-amber-100 font-bold uppercase">距離還有</div>
+              <div class="text-2xl font-black text-amber-100 tracking-tight" id="countdownDaysNum">0</div>
+              <div class="text-[10px] font-bold text-white">天</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="relative z-10">
+          <div class="flex justify-between items-center text-xs font-bold mb-2">
+            <span class="text-amber-100 flex items-center gap-1"><i class="fa-solid fa-calendar-days"></i> 近期重要日程</span>
+            <button onclick="toggleHomeCalendarList(); playSound('click');" id="toggleCalendarBtn" class="text-[11px] text-white hover:text-amber-200 underline flex items-center gap-1 font-semibold">
+              <span>查看全部事項</span> <i class="fa-solid fa-chevron-down text-[10px]" id="calendarChevron"></i>
+            </button>
+          </div>
+          <div id="homeCalendarList" class="space-y-1.5 hidden max-h-48 overflow-y-auto pr-1"></div>
+        </div>
+      </div>
+
+      <div id="studentSelectorBox" class="no-print mb-5 max-w-md mx-auto bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+        <label for="studentSelector" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+          <i class="fa-solid fa-arrow-pointer text-amber-500 mr-1"></i> 學生切換選單 (教師預覽)
+        </label>
+        <div class="flex gap-2">
+          <select id="studentSelector" onchange="onStudentSelectChange(this.value)" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"></select>
+          <button onclick="copyCurrentStudentUrl(); playSound('click');" class="px-3 py-2 bg-amber-50 text-amber-700 rounded-xl text-sm font-bold hover:bg-amber-100 transition whitespace-nowrap border border-amber-200" title="複製此學生的專屬查詢網址">
+            <i class="fa-solid fa-link"></i> 複製網址
+          </button>
+        </div>
+      </div>
+
+      <div id="studentCardContainer" class="max-w-md mx-auto bg-white rounded-3xl shadow-xl overflow-hidden border border-amber-100 transform transition">
+        
+        <div class="bg-gradient-to-br from-amber-400 via-orange-400 to-rose-400 p-6 text-white text-center relative shadow-inner">
+          <div class="absolute top-4 right-4 bg-white/25 backdrop-blur-md px-3 py-1 rounded-full text-xs font-black tracking-wider border border-white/30">
+            <span id="cardSeatNumber">座號 01 號</span>
+          </div>
+          
+          <div class="relative w-24 h-24 mx-auto mb-3 group cursor-pointer" onclick="openStudentAvatarModal(); playSound('click');" title="點擊更換我的頭像或上傳照片">
+            <div class="w-full h-full bg-white/95 backdrop-blur rounded-full p-1 shadow-md flex items-center justify-center text-4xl overflow-hidden border-2 border-white group-hover:ring-4 group-hover:ring-white/50 transition">
+              <span id="cardAvatar" class="w-full h-full flex items-center justify-center">🌟</span>
+            </div>
+            <div class="absolute bottom-0 right-0 bg-orange-600 hover:bg-orange-700 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-md border-2 border-white transition transform group-hover:scale-110">
+              <i class="fa-solid fa-camera"></i>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-center gap-2 flex-wrap">
+            <span id="cardStudentRole" class="inline-flex items-center gap-1 bg-white/90 text-amber-900 text-xs font-black px-2.5 py-0.5 rounded-full shadow-sm border border-amber-200">
+              👑 班長
+            </span>
+            <h2 id="cardStudentName" class="text-2xl font-black tracking-tight drop-shadow-sm">東勢金城武</h2>
+          </div>
+          <p id="cardStudentId" class="text-xs text-amber-100 mt-1 font-mono font-bold">專屬代碼: S001</p>
+        </div>
+
+        <div class="p-6">
+          
+          <div class="mb-6 bg-gradient-to-b from-amber-50 to-orange-50/50 rounded-3xl p-5 border border-amber-200 text-center relative overflow-hidden shadow-sm">
+            <div class="flex items-center justify-between mb-2">
+              <span class="inline-flex items-center gap-1 text-[11px] font-black bg-amber-200/80 text-amber-900 px-2.5 py-1 rounded-full">
+                <i class="fa-solid fa-gamepad text-orange-600"></i> 冒險者學習存摺
+              </span>
+              <div class="flex items-center gap-1.5">
+                <div class="flex items-center bg-white/90 p-0.5 rounded-full border border-amber-200 text-[10px] font-bold">
+                  <button id="genderBtnBoy" onclick="setStudentGender('boy'); playSound('click');" class="px-2 py-0.5 rounded-full transition bg-amber-500 text-white font-bold">👦 男生</button>
+                  <button id="genderBtnGirl" onclick="setStudentGender('girl'); playSound('click');" class="px-2 py-0.5 rounded-full transition text-slate-500 hover:text-orange-600">👧 女生</button>
+                </div>
+                <button onclick="openEvolutionDexModal(); playSound('click');" class="text-[11px] font-bold text-amber-800 bg-white hover:bg-amber-100 px-2.5 py-1 rounded-full border border-amber-200 transition shadow-2xs">
+                  <i class="fa-solid fa-book-sparkles text-amber-600"></i> 進化圖鑑
+                </button>
+              </div>
+            </div>
+
+            <div class="relative w-44 h-44 mx-auto my-1 flex items-center justify-center cursor-pointer group" onclick="pokeHeroCharacter();" title="點擊勇者聽聽他的冒險加油！">
+              <div class="hero-avatar-anim w-full h-full flex items-center justify-center" id="heroStagePuppet"></div>
+              <div id="heroQuoteBubble" class="absolute -top-3 right-0 bg-white text-slate-800 text-[10px] font-bold px-2.5 py-1 rounded-xl shadow-md border border-amber-200 opacity-0 transition-opacity duration-300 pointer-events-none whitespace-nowrap">
+                加油！繼續累積點數！✨
+              </div>
+            </div>
+
+            <div class="inline-block bg-white/90 border border-amber-200 px-3 py-1 rounded-full text-[11px] font-black text-amber-900 shadow-2xs mb-2" id="heroGearTag">
+              初心者木劍 · 草葉新手服
+            </div>
+
+            <div class="flex items-center justify-center my-1">
+              <span id="cardPoints" class="text-5xl font-black text-orange-600 tracking-tight">0</span>
+              <span class="text-lg font-black text-amber-500 ml-2 self-end mb-1">PTS</span>
+            </div>
+
+            <div class="inline-flex items-center gap-1.5 bg-amber-200/80 text-amber-900 px-3.5 py-1 rounded-full text-xs font-black shadow-2xs" id="cardBadge">
+              <i class="fa-solid fa-shield-halved text-amber-700"></i>
+              <span id="cardLevelName">初階探索者 🌟</span>
+            </div>
+
+            <div class="mt-4">
+              <div class="flex justify-between text-xs text-slate-500 font-semibold mb-1.5">
+                <span>升級進度</span>
+                <span id="cardProgressText" class="text-amber-800 font-bold">距離升級【進階小達人】還差 500 點</span>
+              </div>
+              <div class="w-full bg-amber-100/80 h-3 rounded-full overflow-hidden p-0.5 border border-amber-200">
+                <div id="cardProgressBar" class="bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 h-full rounded-full transition-all duration-500 shadow-sm" style="width: 10%;"></div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="mb-6 bg-gradient-to-b from-emerald-50 to-teal-50/60 rounded-3xl p-4 sm:p-5 border border-emerald-200 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+              <span class="inline-flex items-center gap-1.5 text-xs font-black bg-emerald-200/80 text-emerald-900 px-3 py-1 rounded-full">
+                <i class="fa-solid fa-seedling text-emerald-600"></i> 微笑特工 · 好習慣打卡
+              </span>
+              <span class="text-[11px] font-bold text-emerald-800 bg-white/80 px-2.5 py-1 rounded-full border border-emerald-200 shadow-2xs">
+                累計打卡：<strong id="smileAgentCount" class="text-emerald-700">0</strong> / 5 次
+              </span>
+            </div>
+
+            <p class="text-xs text-slate-600 mb-3 leading-relaxed">
+              每日落實班級品格好習慣，完成打卡即可累積次數，集滿 5 次即可申請領取 <strong class="text-orange-600">+10 PTS</strong> 獎勵！(每項每日限打卡一次)
+            </p>
+
+            <div class="space-y-2 mb-3" id="smileAgentChecklist"></div>
+
+            <button type="button" id="smileRewardBtn" onclick="applySmileAgentReward();" class="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs rounded-2xl shadow-md transition flex items-center justify-center gap-1.5 border border-emerald-400">
+              <i class="fa-solid fa-award"></i> 申請驗證領取 +10 點 (滿5次)
+            </button>
+          </div>
+
+          <div class="mb-5 bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-4 border border-amber-200 shadow-sm relative">
+            <div class="flex items-center gap-2 mb-1.5">
+              <div class="w-7 h-7 rounded-full overflow-hidden border-2 border-amber-300 bg-white flex-shrink-0 flex items-center justify-center shadow-xs">
+                <img src="0716-1.png" alt="向日葵班班" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/80x80/f59e0b/ffffff?text=🌻';">
+              </div>
+              <span class="text-xs font-bold text-amber-900 flex items-center gap-1">
+                <i class="fa-solid fa-heart text-rose-500"></i> 老師的專屬鼓勵
+              </span>
+            </div>
+            <p id="cardWelcomeMessage" class="text-xs sm:text-sm text-amber-950 font-medium leading-relaxed italic bg-white/90 p-3 rounded-xl border border-amber-100 shadow-2xs">
+              🌻 歡迎來到向日葵班班！今天也要一起快樂學習、發揮最好的實力喔！
+            </p>
+          </div>
+
+          <div class="mb-6">
+            <h3 class="text-sm font-bold text-slate-700 mb-3 flex items-center justify-between">
+              <span><i class="fa-solid fa-gift mr-1.5 text-orange-500"></i> 班級點數獎勵兌換庫</span>
+              <span class="text-[11px] text-slate-400 font-normal">達到點數可找老師兌換</span>
+            </h3>
+            <div id="studentRewardList" class="space-y-2.5"></div>
+          </div>
+
+          <div class="mb-6">
+            <h3 class="text-sm font-bold text-slate-700 mb-3 flex items-center justify-between">
+              <span><i class="fa-solid fa-clock-rotate-left mr-1.5 text-slate-400"></i> 最近點數紀錄</span>
+              <span class="text-xs text-slate-400 font-normal">最近 5 筆</span>
+            </h3>
+            <div id="cardHistoryList" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
+          </div>
+
+          <div class="bg-gradient-to-b from-amber-50/50 to-orange-50/30 rounded-2xl p-4 border border-amber-200">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <i class="fa-solid fa-comments text-orange-500"></i> 親師生私密留言板
+              </h3>
+              <span class="text-[10px] bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full font-bold border border-amber-200">
+                🔒 僅本人與老師可見
+              </span>
+            </div>
+
+            <div id="studentChatMessagesList" class="space-y-2.5 max-h-60 overflow-y-auto pr-1 mb-3"></div>
+
+            <form onsubmit="submitStudentMessage(event)" class="space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-slate-600 flex-shrink-0">我是：</span>
+                <div class="flex gap-1 text-xs">
+                  <label class="cursor-pointer bg-white px-2.5 py-1 rounded-lg border border-slate-200 flex items-center gap-1 text-slate-700 font-medium hover:bg-amber-50">
+                    <input type="radio" name="senderRole" value="學生" checked class="accent-orange-500"> 👦 學生本人
+                  </label>
+                  <label class="cursor-pointer bg-white px-2.5 py-1 rounded-lg border border-slate-200 flex items-center gap-1 text-slate-700 font-medium hover:bg-amber-50">
+                    <input type="radio" name="senderRole" value="家長" class="accent-orange-500"> 👨‍👩‍👧 學生家長
+                  </label>
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <input type="text" id="studentChatInput" required placeholder="想向老師說的話或詢問事項..." class="flex-1 bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500">
+                <button type="submit" onclick="playSound('click')" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm flex-shrink-0">
+                  <i class="fa-solid fa-paper-plane"></i> 送出
+                </button>
+              </div>
+            </form>
+          </div>
+
+        </div>
+
+        <div class="bg-amber-50/50 border-t border-amber-100 px-6 py-3 text-center text-xs text-slate-400 flex justify-between items-center">
+          <span>最後更新：<span id="cardLastUpdated">剛才</span></span>
+          <button onclick="fetchFromGoogleSheets(true); playSound('click');" class="text-orange-600 hover:text-orange-700 font-bold flex items-center gap-1">
+            <i class="fa-solid fa-rotate text-[11px]"></i> 重新整理
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section id="adminView" class="hidden">
+      <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 mb-6 flex flex-wrap justify-between items-center gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-sliders text-orange-500"></i> 教師控制台
+            </h2>
+            <span class="bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+              <i class="fa-solid fa-shield-halved"></i> 密碼保護中
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 mt-1">向日葵班班專屬管理後台 · 支援 YouTube 影片設定與即時同步</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="fetchFromGoogleSheets(true); playSound('click');" class="bg-amber-50 hover:bg-amber-100 text-amber-800 px-3 py-2 rounded-xl text-sm font-bold transition flex items-center gap-1.5 border border-amber-200 shadow-xs">
+            <i class="fa-solid fa-cloud-arrow-down"></i> 同步試算表
+          </button>
+          <button onclick="openChangePasswordModal(); playSound('click');" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-key"></i> 修改密碼
+          </button>
+          <button onclick="openAddStudentModal(); playSound('click');" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-1.5 shadow-sm">
+            <i class="fa-solid fa-user-plus"></i> 新增學生
+          </button>
+          <button onclick="exportData(); playSound('click');" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-file-export"></i> 匯出
+          </button>
+          <button onclick="document.getElementById('importFileInput').click(); playSound('click');" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-file-import"></i> 匯入
+          </button>
+          <input type="file" id="importFileInput" onchange="importData(event)" class="hidden" accept=".json">
+          <button onclick="logoutAdmin(); playSound('click');" class="bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-2 rounded-xl text-sm font-bold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-lock"></i> 鎖定登出
+          </button>
+        </div>
+      </div>
+
+      <!-- 🌻 新增 YouTube 影片設定專區卡片 -->
+      <div class="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-5 rounded-3xl shadow-lg border border-amber-500/40 mb-6">
+        <h3 class="text-base font-bold mb-2 flex items-center gap-2">
+          <i class="fa-brands fa-youtube text-red-500"></i> 設定班級首頁播放的 YouTube 影片
+        </h3>
+        <p class="text-xs text-slate-300 mb-4">輸入 YouTube 網址或影片 ID（例如：dQw4w9WgXcQ 或完整網址 https://www.youtube.com/watch?v=...），學生登入後就會自動在頂端播放！</p>
+        
+        <form onsubmit="saveClassYouTubeVideo(event)" class="flex flex-wrap gap-3 items-center">
+          <input type="text" id="adminYouTubeInput" placeholder="請輸入 YouTube 影片網址或 ID..." class="flex-1 bg-slate-800 border border-slate-600 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+          <button type="submit" onclick="playSound('click')" class="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs transition shadow-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-floppy-disk"></i> 儲存並套用影片
+          </button>
+        </form>
+      </div>
+
+      <div class="flex space-x-2 border-b border-slate-200 mb-6 overflow-x-auto">
+        <button id="adminTabStudentsBtn" onclick="switchAdminTab('students'); playSound('click');" class="px-4 py-2.5 font-bold text-sm border-b-2 border-orange-500 text-orange-600 flex items-center gap-2 transition whitespace-nowrap">
+          <i class="fa-solid fa-users"></i> 學生名單與積分 (<span id="studentCountBadge">0</span>)
+        </button>
+        <button id="adminTabMessagesBtn" onclick="switchAdminTab('messages'); playSound('click');" class="px-4 py-2.5 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2 transition whitespace-nowrap">
+          <i class="fa-solid fa-comment-dots"></i> 親師生私訊信箱 <span id="unreadMessagesTotalBadge" class="hidden bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">0</span>
+        </button>
+        <button id="adminTabRewardsBtn" onclick="switchAdminTab('rewards'); playSound('click');" class="px-4 py-2.5 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2 transition whitespace-nowrap">
+          <i class="fa-solid fa-gifts"></i> 獎勵兌換設定 (<span id="rewardCountBadge">0</span>)
+        </button>
+        <button id="adminTabEventsBtn" onclick="switchAdminTab('events'); playSound('click');" class="px-4 py-2.5 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2 transition whitespace-nowrap">
+          <i class="fa-solid fa-calendar-days"></i> 班級行事曆 (<span id="eventCountBadge">0</span>)
+        </button>
+      </div>
+
+      <div id="adminTabStudents" class="block">
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-wrap items-center justify-between gap-4">
+          <div class="relative flex-1 min-w-[240px]">
+            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 text-sm"></i>
+            <input type="text" id="adminSearchInput" oninput="renderAdminTable()" placeholder="搜尋姓名,座號或學號..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white">
+          </div>
+          <div class="flex items-center gap-2 text-xs font-bold text-slate-600 flex-wrap">
+            <button onclick="openPresetsManageModal(); playSound('click');" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg border border-slate-300 transition flex items-center gap-1.5">
+              <i class="fa-solid fa-gear text-amber-500"></i> 管理加扣分項目
+            </button>
+            <span>全班加分：</span>
+            <button onclick="quickBatchAdd('作業優良', 2); playSound('coin');" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-2.5 py-1.5 rounded-lg border border-emerald-200 transition">+2 作業</button>
+            <button onclick="quickBatchAdd('主動發言', 1); playSound('coin');" class="bg-amber-50 hover:bg-amber-100 text-amber-800 px-2.5 py-1.5 rounded-lg border border-amber-200 transition">+1 發言</button>
+            <button onclick="quickBatchAdd('熱心服務', 3); playSound('coin');" class="bg-orange-50 hover:bg-orange-100 text-orange-700 px-2.5 py-1.5 rounded-lg border border-orange-200 transition">+3 服務</button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-xs uppercase font-bold text-slate-500">
+                  <th class="py-3 px-4">座號 / 學號</th>
+                  <th class="py-3 px-4">學生姓名</th>
+                  <th class="py-3 px-4 text-center">性別</th>
+                  <th class="py-3 px-4">班級幹部</th>
+                  <th class="py-3 px-4">勉勵詞</th>
+                  <th class="py-3 px-4 text-center">積分</th>
+                  <th class="py-3 px-4 text-center">快速調整</th>
+                  <th class="py-3 px-4 text-center">核銷</th>
+                  <th class="py-3 px-4 text-right">操作</th>
+                </tr>
+              </thead>
+              <tbody id="adminStudentTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="adminTabMessages" class="hidden">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white rounded-3xl border border-slate-200 p-4 shadow-sm min-h-[500px]">
+          <div class="md:col-span-1 border-r border-slate-100 pr-3">
+            <div class="flex justify-between items-center mb-3">
+              <h4 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                <i class="fa-solid fa-address-book text-orange-500"></i> 學生留言清單
+              </h4>
+              <span class="text-[11px] text-slate-400">點選進行回覆</span>
+            </div>
+            <div id="adminChatStudentList" class="space-y-1.5 max-h-[540px] overflow-y-auto pr-1"></div>
+          </div>
+
+          <div class="md:col-span-2 flex flex-col justify-between pl-1">
+            <div>
+              <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+                <div class="flex items-center space-x-2.5 min-w-0">
+                  <div class="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center text-lg overflow-hidden flex-shrink-0" id="adminChatAvatar">🌟</div>
+                  <div class="min-w-0">
+                    <h4 class="font-bold text-slate-800 text-sm truncate" id="adminChatStudentName">請從左側選擇學生</h4>
+                    <p class="text-[11px] text-slate-400 truncate" id="adminChatStudentInfo">學號與目前積分</p>
+                  </div>
+                </div>
+                <button onclick="markCurrentChatRead(); playSound('click');" class="text-xs text-slate-500 hover:text-orange-600 font-semibold flex items-center gap-1">
+                  <i class="fa-solid fa-check-double"></i> 全部標為已讀
+                </button>
+              </div>
+
+              <div id="adminChatMessagesBox" class="space-y-3 max-h-[380px] overflow-y-auto pr-2 mb-3">
+                <div class="text-center py-12 text-slate-400 text-xs">請點選左側學生檢視留言紀錄</div>
+              </div>
+            </div>
+
+            <form onsubmit="submitAdminReply(event)" class="pt-3 border-t border-slate-100">
+              <div class="flex items-center gap-1.5 mb-2 overflow-x-auto pb-1 text-[11px]">
+                <span class="text-slate-400 flex-shrink-0">快速回覆：</span>
+                <button type="button" onclick="setAdminReplyPreset('好的，老師收到囉！會多加留意！'); playSound('click');" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded-lg whitespace-nowrap">收到留意</button>
+                <button type="button" onclick="setAdminReplyPreset('今天在課堂上的表現非常棒，繼續保持！🌟'); playSound('click');" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded-lg whitespace-nowrap">表現優秀</button>
+                <button type="button" onclick="setAdminReplyPreset('收到家長的請假說明，已為孩子登記，請安心休養！🌿'); playSound('click');" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded-lg whitespace-nowrap">請假回覆</button>
+                <button type="button" onclick="setAdminReplyPreset('感謝家長的配合與關心，我們一起親師合作！💪'); playSound('click');" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded-lg whitespace-nowrap">感謝配合</button>
+              </div>
+              <div class="flex gap-2">
+                <textarea id="adminReplyInput" required rows="2" placeholder="以【🌻 向日葵班班導師】身分回覆家長與學生..." class="flex-1 bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500"></textarea>
+                <button type="submit" onclick="playSound('click')" class="bg-orange-500 hover:bg-orange-600 text-white px-5 rounded-xl font-bold text-xs transition shadow-sm flex items-center justify-center gap-1.5 flex-shrink-0">
+                  <i class="fa-solid fa-reply"></i> 回覆
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div id="adminTabRewards" class="hidden">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h3 class="text-base font-bold text-slate-800">向日葵班班 獎勵項目清單</h3>
+            <p class="text-xs text-slate-500 mt-0.5">這些獎勵會即時同步給全班學生查詢卡顯示</p>
+          </div>
+          <button onclick="openAddRewardModal(); playSound('click');" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-1.5 shadow-sm">
+            <i class="fa-solid fa-plus"></i> 新增獎勵項目
+          </button>
+        </div>
+        <div id="rewardsGridContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </div>
+
+      <div id="adminTabEvents" class="hidden">
+        <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+          <div>
+            <h3 class="text-base font-bold text-slate-800">向日葵班班 重要行事曆設定</h3>
+            <p class="text-xs text-slate-500 mt-0.5">此處設定的重要事項會在首頁自動倒數，並同步至 Google 試算表</p>
+          </div>
+          <button onclick="openAddEventModal(); playSound('click');" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-1.5 shadow-sm">
+            <i class="fa-solid fa-plus"></i> 新增行事曆事件
+          </button>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-xs uppercase font-bold text-slate-500">
+                  <th class="py-3 px-4">日期</th>
+                  <th class="py-3 px-4">倒數天數</th>
+                  <th class="py-3 px-4">事件名稱</th>
+                  <th class="py-3 px-4">類型標籤</th>
+                  <th class="py-3 px-4">備註說明</th>
+                  <th class="py-3 px-4 text-right">操作</th>
+                </tr>
+              </thead>
+              <tbody id="adminEventsTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <section id="printView" class="hidden">
+      <div class="no-print bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 flex flex-wrap justify-between items-center gap-4">
+        <div>
+          <h3 class="font-bold text-amber-900 text-sm flex items-center gap-2">
+            <i class="fa-solid fa-print"></i> 🌻 向日葵班班 · 專屬 QR Code 小卡
+          </h3>
+          <p class="text-xs text-amber-700 mt-0.5">點擊右方按鈕即可一鍵列印，剪裁後貼在學生聯絡簿或課桌上。</p>
+        </div>
+        <button onclick="window.print(); playSound('click');" class="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow transition flex items-center gap-2">
+          <i class="fa-solid fa-print"></i> 立即列印全部小卡
+        </button>
+      </div>
+
+      <div id="qrCardsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+    </section>
+
+  </main>
+
+  <!-- Modals -->
+  <div id="evolutionDexModal" class="no-print fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-book-sparkles text-orange-500"></i> 冒險者勇者進化圖鑑
+        </h3>
+        <button onclick="closeEvolutionDexModal(); playSound('click');" class="text-slate-400 hover:text-slate-600 p-1">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="flex justify-center items-center gap-2 mb-3 bg-amber-50 p-1 rounded-2xl border border-amber-200 text-xs font-bold">
+        <button id="dexTabBoy" onclick="setDexGender('boy'); playSound('click');" class="px-4 py-1.5 rounded-xl transition bg-orange-500 text-white shadow-xs">👦 男生勇者</button>
+        <button id="dexTabGirl" onclick="setDexGender('girl'); playSound('click');" class="px-4 py-1.5 rounded-xl transition text-amber-800 hover:text-pink-600">👧 女生天女</button>
+      </div>
+
+      <p class="text-xs text-slate-500 mb-4 leading-relaxed">
+        就像《楓之谷》一樣，只要認真上課、作業優良、主動發問與養成良好習慣，點數累積愈多，角色就會換上更帥氣強大的武器神裝喔！
+      </p>
+
+      <div class="space-y-3" id="evolutionDexCardsContainer"></div>
+
+      <div class="pt-4 mt-4 border-t border-slate-100 text-center">
+        <button type="button" onclick="closeEvolutionDexModal(); playSound('click');" class="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition shadow-sm">
+          我知道了，加油衝刺！💪
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="pointModal" class="no-print fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 max-h-[92vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-star text-amber-500"></i> 調整點數紀錄
+        </h3>
+        <button onclick="closePointModal(); playSound('click');" class="text-slate-400 hover:text-slate-600 p-1">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="text-center py-2.5 mb-3 bg-amber-50/70 rounded-2xl border border-amber-200/80">
+        <div class="w-10 h-10 mx-auto mb-1 rounded-full overflow-hidden bg-white border border-amber-300 flex items-center justify-center text-lg shadow-xs" id="pointModalAvatarBox">🌟</div>
+        <div id="pointModalStudentName" class="font-bold text-slate-800 text-sm">學生名稱</div>
+        <div class="text-xs text-slate-500 mt-0.5">目前點數：<span id="pointModalCurrentPoints" class="font-bold text-orange-600">0</span> 點</div>
+      </div>
+
+      <div class="mb-4">
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-xs font-bold text-slate-700">⚡ 常用加扣分項目 (點擊直接加分)：</span>
+          <button onclick="openPresetsManageModal(); playSound('click');" class="text-[11px] text-orange-600 hover:text-orange-700 font-semibold flex items-center gap-0.5">
+            <i class="fa-solid fa-gear text-[10px]"></i> 管理項目
+          </button>
+        </div>
+        <div id="pointPresetsGrid" class="grid grid-cols-2 gap-2"></div>
+      </div>
+
+      <form id="pointForm" onsubmit="submitPointAdjustment(event)" class="space-y-3 pt-3 border-t border-slate-100">
+        <input type="hidden" id="pointStudentId">
+        <div class="text-xs font-bold text-slate-500">或自訂變更點數：</div>
+        <div class="grid grid-cols-3 gap-2">
+          <div class="col-span-1">
+            <input type="number" id="pointChangeAmount" placeholder="如 +2 或 -1" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-2 py-2 text-xs font-bold text-center focus:outline-none focus:ring-2 focus:ring-amber-500">
+          </div>
+          <div class="col-span-2">
+            <input type="text" id="pointReason" placeholder="輸入原因說明..." class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500">
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closePointModal(); playSound('click');" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition">取消</button>
+          <button type="submit" onclick="playSound('coin')" class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition shadow-sm">送出自訂</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="presetsManageModal" class="no-print fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 max-h-[88vh] flex flex-col">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-orange-500"></i> 管理常用加扣分項目
+        </h3>
+        <button onclick="closePresetsManageModal(); playSound('click');" class="text-slate-400 hover:text-slate-600 p-1">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <p class="text-xs text-slate-500 mb-3">在此自訂課堂加扣分的快捷按鈕，方便隨時一鍵完成獎勵！</p>
+      
+      <div class="flex-1 overflow-y-auto space-y-2 pr-1 mb-4" id="presetsListContainer"></div>
+
+      <form onsubmit="addNewPresetItem(event)" class="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-2.5">
+        <div class="text-xs font-bold text-slate-700">新增常用項目：</div>
+        <div class="grid grid-cols-4 gap-2">
+          <input type="text" id="newPresetEmoji" placeholder="圖示" value="⭐" class="col-span-1 text-center bg-white border border-slate-300 rounded-xl px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+          <input type="text" id="newPresetReason" required placeholder="項目名稱 (如：認真打掃)" class="col-span-2 bg-white border border-slate-300 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500">
+          <input type="number" id="newPresetDelta" required placeholder="點數" value="1" class="col-span-1 text-center font-bold bg-white border border-slate-300 rounded-xl px-1 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div class="flex justify-between items-center pt-1">
+          <button type="button" onclick="resetDefaultPointPresets(); playSound('click');" class="text-[11px] text-slate-400 hover:text-slate-600 underline">恢復預設值</button>
+          <button type="submit" onclick="playSound('click')" class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition shadow-sm">
+            <i class="fa-solid fa-plus"></i> 新增項目
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="welcomeMessageModal" class="no-print fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-comment-dots text-amber-500"></i> 設定向日葵班專屬勉勵詞
+        </h3>
+        <button onclick="closeWelcomeMessageModal(); playSound('click');" class="text-slate-400 hover:text-slate-600 p-1">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="text-xs text-slate-500 mb-3">對象：<span id="welcomeModalStudentName" class="font-bold text-orange-600 text-sm">--</span></div>
+      <form id="welcomeMessageForm" onsubmit="saveWelcomeMessage(event)" class="space-y-3.5">
+        <input type="hidden" id="welcomeModalStudentId">
+        <div>
+          <textarea id="welcomeModalInput" rows="3" required placeholder="例如：這週在分組活動表現很棒，繼續保持積極的心情喔！" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-amber-500"></textarea>
+        </div>
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeWelcomeMessageModal(); playSound('click');" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-semibold">取消</button>
+          <button type="submit" onclick="playSound('click')" class="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold shadow-sm">儲存勉勵詞</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="adminLoginModal" class="no-print fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100">
+      <div class="text-center mb-5">
+        <div class="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl shadow-inner">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <h3 class="text-lg font-bold text-slate-800">教師後台身分驗證</h3>
+        <p class="text-xs text-slate-500 mt-1">請輸入教師管理密碼以繼續操作</p>
+      </div>
+      <form id="adminLoginForm" onsubmit="verifyAdminPassword(event)" class="space-y-4">
+        <div>
+          <input type="password" id="inputAdminPassword" required placeholder="請輸入管理密碼" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-center font-mono text-base tracking-widest focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeAdminLoginModal(); playSound('click');" class="w-1/2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-semibold">取消</button>
+          <button type="submit" onclick="playSound('click')" class="w-1/2 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold shadow-sm">確認登入</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="changePasswordModal" class="no-print fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-key text-orange-500"></i> 修改後台管理密碼
+        </h3>
+        <button onclick="closeChangePasswordModal(); playSound('click');" class="text-slate-400 hover:text-slate-600 p-1">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <form id="changePasswordForm" onsubmit="saveNewPassword(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">目前密碼 *</label>
+          <input type="password" id="currentPasswordInput" required placeholder="輸入舊密碼" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">新密碼 *</label>
+          <input type="password" id="newPasswordInput" required placeholder="輸入新密碼 (至少4碼)" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">再次確認新密碼 *</label>
+          <input type="password" id="confirmNewPasswordInput" required placeholder="再次輸入新密碼" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeChangePasswordModal(); playSound('click');" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-semibold">取消</button>
+          <button type="submit" onclick="playSound('click')" class="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold shadow-sm">儲存密碼</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="studentModal" class="no-print fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-5">
+        <h3 id="modalTitle" class="text-lg font-bold text-slate-800">新增學生</h3>
+        <button onclick="closeStudentModal(); playSound('click');" class="text-slate-400 hover:text-slate-600 p-1">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      <form id="studentForm" onsubmit="saveStudent(event)" class="space-y-3.5">
+        <input type="hidden" id="editOriginalId">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">座號 *</label>
+            <input type="number" id="inputSeat" required min="1" max="99" placeholder="例如: 1" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">學號/自訂代碼 *</label>
+            <input type="text" id="inputId" required placeholder="例如: S001" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">學生姓名 *</label>
+          <input type="text" id="inputName" required placeholder="例如: 王小明" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">學生性別 *</label>
+          <div class="flex gap-4 items-center bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs">
+            <label class="flex items-center gap-1.5 cursor-pointer font-bold text-sky-700">
+              <input type="radio" name="inputGender" value="boy" checked class="accent-sky-600"> 👦 男生
+            </label>
+            <label class="flex items-center gap-1.5 cursor-pointer font-bold text-pink-700">
+              <input type="radio" name="inputGender" value="girl" class="accent-pink-600"> 👧 女生
+            </label>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">班級幹部職稱</label>
+          <input type="text" id="inputRole" placeholder="例如: 班長、副班長、學藝、無..." class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">專屬勉勵詞</label>
+          <input type="text" id="inputWelcomeMessage" placeholder="歡迎來到向日葵班班！" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">頭像 Emoji</label>
+          <input type="text" id="inputAvatar" value="🌟" class="w-16 text-center bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">起始積分</label>
+          <input type="number" id="inputPoints" value="0" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeStudentModal(); playSound('click');" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-semibold">取消</button>
+          <button type="submit" onclick="playSound('click')" class="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold shadow-sm">儲存學生</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="rewardModal" class="no-print fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex justify-between items-center mb-5">
+        <h3 id="rewardModalTitle" class="text-lg font-bold text-slate-800">設定獎勵項目</h3>
+        <button onclick="closeRewardModal(); playSound('click');" class="text-slate-400 hover:text-slate-600 p-1">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      <form id="rewardForm" onsubmit="saveRewardItem(event)" class="space-y-4">
+        <input type="hidden" id="editRewardId">
+        <div class="grid grid-cols-3 gap-3">
+          <div class="col-span-1">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">圖示 Emoji</label>
+            <input type="text" id="rewardEmojiInput" value="🎁" class="w-full text-center bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+          </div>
+          <div class="col-span-2">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">所需積分 (PTS) *</label>
+            <input type="number" id="rewardPointsInput" required min="1" placeholder="例如: 30" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm font-bold text-orange-600 focus:outline-none focus:ring-2 focus:ring-amber-500">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">獎勵名稱 *</label>
+          <input type="text" id="rewardTitleInput" required placeholder="例如: 免死金牌、自選座位特權..." class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">兌換說明與規則</label>
+          <textarea id="rewardDescInput" rows="2" placeholder="例如: 作業可補交一次、可維持一週..." class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500"></textarea>
+        </div>
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeRewardModal(); playSound('click');" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-semibold">取消</button>
+          <button type="submit" onclick="playSound('click')" class="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold shadow-sm">儲存獎勵</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="claimModal" class="no-print fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100">
+      <div class="text-center mb-4">
+        <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-2 text-xl">
+          <i class="fa-solid fa-gift"></i>
+        </div>
+        <h3 class="text-base font-bold text-slate-800">核銷獎勵兌換</h3>
+        <p class="text-xs text-slate-500 mt-0.5">為學生扣除對應點數並完成兌換紀錄</p>
+      </div>
+      <div class="bg-amber-50/60 p-3 rounded-2xl mb-4 text-xs space-y-1 border border-amber-100">
+        <div class="flex justify-between text-slate-600">
+          <span>兌換學生：</span>
+          <strong id="claimStudentName" class="text-slate-800">--</strong>
+        </div>
+        <div class="flex justify-between text-slate-600">
+          <span>目前點數：</span>
+          <strong id="claimCurrentPoints" class="text-orange-600 font-bold">0 點</strong>
+        </div>
+      </div>
+      <form id="claimForm" onsubmit="submitClaimReward(event)" class="space-y-4">
+        <input type="hidden" id="claimStudentId">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">選擇要兌換的獎勵項目 *</label>
+          <select id="claimRewardSelect" required onchange="onClaimRewardSelected(this.value)" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500"></select>
+        </div>
+        <div class="p-3 bg-amber-100/70 rounded-xl border border-amber-200 text-xs text-amber-900 font-medium">
+          即將扣除：<span id="claimDeductAmount" class="font-black text-rose-600 text-sm">0</span> 點
+        </div>
+        <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeClaimModal(); playSound('click');" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-semibold">取消</button>
+          <button type="submit" onclick="playSound('coin')" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-sm">確認核銷扣點</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="avatarModal" class="no-print fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-face-smile text-orange-500"></i> 更換我的個人頭像
+        </h3>
+        <button onclick="closeStudentAvatarModal(); playSound('click');" class="text-slate-400 hover:text-slate-600 p-1">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="text-center mb-5">
+        <div class="w-20 h-20 mx-auto rounded-full bg-amber-50 border-2 border-amber-300 flex items-center justify-center text-4xl overflow-hidden shadow-inner mb-2" id="avatarPreviewBox">
+          <span id="avatarPreviewSpan" class="w-full h-full flex items-center justify-center">🌟</span>
+        </div>
+        <p class="text-xs text-slate-500 font-medium">即將套用的個人頭像預覽</p>
+      </div>
+      <div class="space-y-4">
+        <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-center">
+          <p class="text-xs font-bold text-slate-700 mb-2 flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-image text-orange-500"></i> 上傳個人照片或自拍
+          </p>
+          <input type="file" id="avatarUploadInput" accept="image/*" class="hidden" onchange="handleAvatarFileUpload(event)">
+          <button type="button" onclick="document.getElementById('avatarUploadInput').click(); playSound('click');" class="w-full py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 border border-amber-200">
+            <i class="fa-solid fa-upload"></i> 從相簿選取或拍照上傳
+          </button>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1.5">或挑選一個代表自己的 Emoji：</label>
+          <div class="grid grid-cols-6 gap-2 p-2 bg-slate-50 rounded-2xl border border-slate-200 text-2xl text-center">
+            <span class="cursor-pointer hover:scale-125 transition p-1 hover:bg-white rounded-xl" onclick="setAvatarPreset('🌟'); playSound('click');">🌟</span>
+            <span class="cursor-pointer hover:scale-125 transition p-1 hover:bg-white rounded-xl" onclick="setAvatarPreset('🌻'); playSound('click');">🌻</span>
+            <span class="cursor-pointer hover:scale-125 transition p-1 hover:bg-white rounded-xl" onclick="setAvatarPreset('🚀'); playSound('click');">🚀</span>
+            <span class="cursor-pointer hover:scale-125 transition p-1 hover:bg-white rounded-xl" onclick="setAvatarPreset('🦄'); playSound('click');">🦄</span>
+            <span class="cursor-pointer hover:scale-125 transition p-1 hover:bg-white rounded-xl" onclick="setAvatarPreset('🦁'); playSound('click');">🦁</span>
+            <span class="cursor-pointer hover:scale-125 transition p-1 hover:bg-white rounded-xl" onclick="setAvatarPreset('🐼'); playSound('click');">🐼</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-4 mt-4 border-t border-slate-100">
+        <button type="button" onclick="closeStudentAvatarModal(); playSound('click');" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold">取消</button>
+        <button type="button" onclick="saveSelectedAvatar(); playSound('coin');" class="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-sm">確認儲存頭像</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="eventModal" class="no-print fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex justify-between items-center mb-5">
+        <h3 id="eventModalTitle" class="text-lg font-bold text-slate-800">新增行事曆事件</h3>
+        <button onclick="closeEventModal(); playSound('click');" class="text-slate-400 hover:text-slate-600 p-1">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      <form id="eventForm" onsubmit="saveEventItem(event)" class="space-y-4">
+        <input type="hidden" id="editEventId">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">事件日期 *</label>
+            <input type="date" id="eventDateInput" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">類型標籤 *</label>
+            <select id="eventTagInput" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500">
+              <option value="考試測驗">📝 考試測驗</option>
+              <option value="作業繳交">📚 作業繳交</option>
+              <option value="戶外活動">🚌 戶外活動</option>
+              <option value="班級活動">🎉 班級活動</option>
+              <option value="學校重要日">🏫 學校重要日</option>
+              <option value="其他">📌 其他提醒</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">事件名稱 / 事項 *</label>
+          <input type="text" id="eventTitleInput" required placeholder="例如: 第一次數學隨堂測驗..." class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">備註說明與注意事項</label>
+          <textarea id="eventDescInput" rows="2" placeholder="例如: 請攜帶水壺與輕便雨衣..." class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500"></textarea>
+        </div>
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeEventModal(); playSound('click');" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-semibold">取消</button>
+          <button type="submit" onclick="playSound('click')" class="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold shadow-sm">儲存事件</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <footer class="no-print bg-white/80 backdrop-blur-sm border-t border-amber-200/60 py-4 text-center text-xs text-slate-400 mt-auto">
+    <div class="max-w-6xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
+      <p>🌻 向日葵班班 · 學習存摺積分查詢系統 (音效與 Canvas 彩帶特效版)</p>
+      <button onclick="requestAdminAccess('admin'); playSound('click');" class="text-slate-400 hover:text-orange-600 text-[11px] flex items-center gap-1 transition">
+        <i class="fa-solid fa-lock text-[10px]"></i> 教師管理登入
+      </button>
+    </div>
+  </footer>
+
+  <script>
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxWQhC0bDnz4ITKoSGACvJeYlzDCGVOoYDMcoP3dIyAtBk5C1bpTajpj-R_xycdcBjW/exec";
+    const DEFAULT_ADMIN_PASSWORD = "8888";
+
+    let audioCtx = null;
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playSound(type) {
+      try {
+        initAudio();
+        if (!audioCtx) return;
+        const now = audioCtx.currentTime;
+
+        if (type === 'click') {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(600, now);
+          osc.frequency.exponentialRampToValueAtTime(300, now + 0.08);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.08);
+        } else if (type === 'coin') {
+          const osc1 = audioCtx.createOscillator();
+          const osc2 = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc1.type = 'triangle';
+          osc2.type = 'sine';
+          osc1.frequency.setValueAtTime(987.77, now);
+          osc2.frequency.setValueAtTime(1318.51, now + 0.08);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+          osc1.connect(gain);
+          osc2.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc1.start(now);
+          osc2.start(now + 0.08);
+          osc1.stop(now + 0.35);
+          osc2.stop(now + 0.35);
+        } else if (type === 'levelup' || type === 'reward') {
+          const notes = [523.25, 659.25, 783.99, 1046.50];
+          notes.forEach((freq, idx) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.1);
+            gain.gain.setValueAtTime(0.2, now + idx * 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.1 + 0.3);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now + idx * 0.1);
+            osc.stop(now + idx * 0.1 + 0.3);
+          });
+        }
+      } catch (e) {
+        console.warn("音效播放失敗:", e);
+      }
+    }
+
+    function triggerConfetti() {
+      try {
+        if (typeof confetti === 'function') {
+          confetti({
+            particleCount: 100,
+            spread: 80,
+            origin: { y: 0.6 }
+          });
+        }
+      } catch(e) {}
+    }
+
+    const DEFAULT_POINT_PRESETS = [
+      { id: "P01", emoji: "🙋‍♂️", reason: "課堂優良發言", delta: 1 },
+      { id: "P02", emoji: "📝", reason: "作業優秀工整", delta: 2 },
+      { id: "P03", emoji: "🌟", reason: "主動熱心助人", delta: 2 },
+      { id: "P04", emoji: "🧹", reason: "認真打掃環境", delta: 2 },
+      { id: "P05", emoji: "💯", reason: "測驗滿分/大幅進步", delta: 5 },
+      { id: "P06", emoji: "⚠️", reason: "未帶學用品/作業", delta: -1 },
+      { id: "P07", emoji: "📢", reason: "課堂喧嘩分心", delta: -1 }
+    ];
+
+    const SMILE_AGENT_TASKS = [
+      { id: "T1", title: "桌面保持整潔", desc: "書本與文具井然有序" },
+      { id: "T2", title: "午餐後確實潔牙", desc: "照顧口腔健康好習慣" },
+      { id: "T3", title: "上課前準備好書本", desc: "提早預備專心學習" },
+      { id: "T4", title: "午餐不挑食", desc: "營養均衡吃光光" },
+      { id: "T5", title: "走廊排隊能安靜", desc: "守秩序輕聲慢步" }
+    ];
+
+    let students = [];
+    let rewards = [];
+    let classEvents = [];
+    let messages = [];
+    let pointPresets = JSON.parse(JSON.stringify(DEFAULT_POINT_PRESETS));
+    let adminPassword = DEFAULT_ADMIN_PASSWORD;
+    let classYouTubeVideoUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"; // 預設示範影片
+    let currentStudentId = null;
+    let currentAdminChatStudentId = null;
+    let isAdminAuthenticated = false;
+    let isFetchingGoogleSheet = false;
+    let isStudentPersonalMode = false;
+    let isHomeCalendarExpanded = false;
+    let tempSelectedAvatar = '🌟';
+
+    function renderStudentCard() {
+      const student = students.find(s => String(s.id).toLowerCase() === String(currentStudentId).toLowerCase()) || students[0];
+      if (!student) return;
+
+      const seatEl = document.getElementById('cardSeatNumber');
+      if (seatEl) seatEl.textContent = `座號 ${String(student.seat).padStart(2, '0')} 號`;
+
+      const cardAvatarEl = document.getElementById('cardAvatar');
+      const avatarVal = student.avatar || '🌟';
+      if (cardAvatarEl) {
+        if (avatarVal.startsWith('data:image/') || avatarVal.startsWith('http')) {
+          cardAvatarEl.innerHTML = `<img src="${avatarVal}" class="w-full h-full object-cover rounded-full">`;
+        } else {
+          cardAvatarEl.innerHTML = avatarVal;
+        }
+      }
+
+      const roleEl = document.getElementById('cardStudentRole');
+      if (roleEl) {
+        if (student.role) {
+          roleEl.textContent = student.role;
+          roleEl.classList.remove('hidden');
+        } else {
+          roleEl.classList.add('hidden');
+        }
+      }
+
+      const nameEl = document.getElementById('cardStudentName');
+      const idEl = document.getElementById('cardStudentId');
+      const ptsEl = document.getElementById('cardPoints');
+      if (nameEl) nameEl.textContent = student.name;
+      if (idEl) idEl.textContent = `專屬代碼: ${student.id}`;
+      if (ptsEl) ptsEl.textContent = student.points;
+
+      const welcomeEl = document.getElementById('cardWelcomeMessage');
+      if (welcomeEl) welcomeEl.textContent = student.welcomeMessage || "🌻 歡迎來到向日葵班班！";
+
+      const gender = student.gender || 'boy';
+      updateGenderUIButtons(gender);
+
+      const lvl = getStudentLevel(student.points);
+      const puppetBox = document.getElementById('heroStagePuppet');
+      if (puppetBox) puppetBox.innerHTML = getHeroCharacterSVG(lvl.stage, gender);
+      const levelEl = document.getElementById('cardLevelName');
+      if (levelEl) levelEl.textContent = lvl.name;
+
+      const gearTag = document.getElementById('heroGearTag');
+      if (gearTag) {
+        if (gender === 'girl') {
+          const girlGears = [
+            "初心者木劍 · 粉紅蝴蝶結 · 草葉短裙",
+            "精鋼細劍 · 四葉草髮夾 · 翠綠百褶裙",
+            "女武神金劍 · 紅寶石金冠 · 黃金戰甲裙",
+            "星空鑽石魔杖 · 鑽石星冠 · 璀璨水晶袍",
+            "星月聖神杖 · 至尊向日葵花冠 · 天使神翼"
+          ];
+          gearTag.textContent = girlGears[lvl.stage - 1];
+        } else {
+          const boyGears = [
+            "初心者木劍 · 發芽嫩苗 · 草葉新手服",
+            "精鋼長劍 · 守護盾 · 翠綠披肩服",
+            "王者巨劍 · 騎士戰盔 · 黃金重甲",
+            "星辰鑽石杖 · 鑽石王冠 · 蔚藍法袍",
+            "創世向日葵神劍 · 尊爵皇冠 · 天使神翼"
+          ];
+          gearTag.textContent = boyGears[lvl.stage - 1];
+        }
+      }
+
+      const needed = Math.max(0, lvl.next - student.points);
+      const span = lvl.next - lvl.prev;
+      const currentInSpan = student.points - lvl.prev;
+      const percent = Math.min(100, Math.max(5, Math.round((currentInSpan / span) * 100)));
+
+      const progTextEl = document.getElementById('cardProgressText');
+      const progBarEl = document.getElementById('cardProgressBar');
+      if (progTextEl) progTextEl.textContent = needed > 0 ? `距離升級還差 ${needed} 點` : `已晉升至最高榮譽！`;
+      if (progBarEl) progBarEl.style.width = `${percent}%`;
+
+      renderSmileAgentChecklist(student);
+      renderStudentRewardsList(student);
+      renderStudentHistoryList(student);
+      renderStudentChatMessages(student);
+      renderYouTubePlayer();
+
+      const updatedEl = document.getElementById('cardLastUpdated');
+      if (updatedEl) updatedEl.textContent = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function renderYouTubePlayer() {
+      const box = document.getElementById('youtubePlayerBox');
+      if (!box) return;
+      
+      let rawUrl = classYouTubeVideoUrl || "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+      let videoId = "dQw4w9WgXcQ";
+
+      if (rawUrl.includes('embed/')) {
+        videoId = rawUrl.split('embed/')[1].split('?')[0];
+      } else if (rawUrl.includes('youtu.be/')) {
+        videoId = rawUrl.split('youtu.be/')[1].split('?')[0];
+      } else if (rawUrl.includes('watch?v=')) {
+        videoId = rawUrl.split('watch?v=')[1].split('&')[0];
+      } else {
+        videoId = rawUrl.trim();
+      }
+
+      // 🌻 雙重防護：若為本地 file:// 協議開啟，提供一鍵安全前往觀看按鈕以徹底規避 Error 153
+      if (window.location.protocol === 'file:') {
+        box.innerHTML = `
+          <div class="flex flex-col items-center justify-center p-6 text-center">
+            <div class="w-12 h-12 bg-red-600 rounded-2xl flex items-center justify-center text-white text-xl mb-2 shadow-md">
+              <i class="fa-brands fa-youtube"></i>
+            </div>
+            <h4 class="text-white font-bold text-sm mb-1">班級指定 YouTube 影片</h4>
+            <p class="text-slate-400 text-[11px] mb-3">由於瀏覽器安全協定（file://），請點擊下方按鈕前往觀看：</p>
+            <a href="https://www.youtube.com/watch?v=${videoId}" target="_blank" rel="noopener noreferrer" 
+               class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md">
+              <i class="fa-solid fa-play"></i> 開啟 YouTube 觀看影片
+            </a>
+          </div>
+        `;
+      } else {
+        const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&enablejsapi=1&playsinline=1&rel=0`;
+        box.innerHTML = `<iframe src="${embedUrl}" referrerpolicy="strict-origin-when-cross-origin" class="w-full h-full border-0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+      }
+    }
+
+    function saveClassYouTubeVideo(e) {
+      e.preventDefault();
+      const val = document.getElementById('adminYouTubeInput').value.trim();
+      if (!val) return showToast("請輸入 YouTube 影片網址或 ID", "error");
+      classYouTubeVideoUrl = val;
+      saveSystemData();
+      renderYouTubePlayer();
+      showToast("已成功更新並套用班級 YouTube 影片！🎬", "success");
+      sendDataToGoogleSheets({ action: 'saveYouTubeVideo', videoUrl: val });
+    }
+
+    function updateGenderUIButtons(gender) {
+      const btnBoy = document.getElementById('genderBtnBoy');
+      const btnGirl = document.getElementById('genderBtnGirl');
+      if (!btnBoy || !btnGirl) return;
+
+      if (gender === 'girl') {
+        btnGirl.className = "px-2 py-0.5 rounded-full transition bg-pink-500 text-white shadow-xs font-bold";
+        btnBoy.className = "px-2 py-0.5 rounded-full transition text-slate-500 hover:text-orange-600";
+      } else {
+        btnBoy.className = "px-2 py-0.5 rounded-full transition bg-amber-500 text-white shadow-xs font-bold";
+        btnGirl.className = "px-2 py-0.5 rounded-full transition text-slate-500 hover:text-orange-600";
+      }
+    }
+
+    function setStudentGender(gender) {
+      const student = students.find(s => String(s.id).toLowerCase() === String(currentStudentId).toLowerCase());
+      if (!student) return;
+
+      student.gender = gender;
+      saveSystemData();
+      renderStudentCard();
+      showToast(`已切換為【${gender === 'girl' ? '👧 女生' : '👦 男生'}】紙娃娃造型！✨`, "success");
+    }
+
+    function openEvolutionDexModal() {
+      document.getElementById('evolutionDexModal').classList.remove('hidden');
+    }
+
+    function closeEvolutionDexModal() {
+      document.getElementById('evolutionDexModal').classList.add('hidden');
+    }
+
+    function renderSmileAgentChecklist(student) {
+      const container = document.getElementById('smileAgentChecklist');
+      const countEl = document.getElementById('smileAgentCount');
+      if (!container || !countEl) container.innerHTML = '';
+
+      if (!student.smileLogs) student.smileLogs = {};
+      const todayStr = new Date().toISOString().slice(0, 10);
+      
+      if (!student.smileLogs[todayStr]) {
+        student.smileLogs[todayStr] = { tasks: {}, rewardClaimed: false };
+      }
+      const todayLog = student.smileLogs[todayStr];
+
+      let checkedCountToday = Object.keys(todayLog.tasks).length;
+      countEl.textContent = checkedCountToday;
+      container.innerHTML = '';
+
+      SMILE_AGENT_TASKS.forEach(task => {
+        const isDone = !!todayLog.tasks[task.id];
+        const div = document.createElement('div');
+        div.className = "flex items-center justify-between p-2.5 rounded-2xl border transition " + 
+          (isDone ? "bg-slate-100 border-slate-200" : "bg-white border-emerald-200/80 hover:bg-emerald-50/40");
+        
+        div.innerHTML = `
+          <div class="flex items-center gap-2.5">
+            <div>
+              <p class="text-xs font-black text-slate-800">${task.title}</p>
+              <p class="text-[10px] text-slate-500">${task.desc}</p>
+            </div>
+          </div>
+          <button type="button" onclick="recordSmileAgentCheckin('${task.id}', '${task.title}')" 
+            class="px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 ${
+              isDone ? 'bg-slate-300 text-slate-600 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+            }" ${isDone ? 'disabled' : ''}>
+            <i class="fa-solid ${isDone ? 'fa-check' : 'fa-plus'}"></i> ${isDone ? '今日已打卡' : '打卡 +1'}
+          </button>
+        `;
+        container.appendChild(div);
+      });
+
+      const rewardBtn = document.getElementById('smileRewardBtn');
+      if (rewardBtn) {
+        if (todayLog.rewardClaimed) {
+          rewardBtn.className = "w-full py-2.5 bg-slate-300 text-slate-600 font-black text-xs rounded-2xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-not-allowed";
+          rewardBtn.innerHTML = `<i class="fa-solid fa-check-double"></i> 今日已領取過驗證獎勵`;
+          rewardBtn.disabled = true;
+        } else {
+          rewardBtn.className = "w-full py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 text-white font-black text-xs rounded-2xl shadow-md transition flex items-center justify-center gap-1.5 border border-emerald-400";
+          rewardBtn.innerHTML = `<i class="fa-solid fa-award"></i> 申請驗證領取 +10 點 (滿5次)`;
+          rewardBtn.disabled = false;
+        }
+      }
+    }
+
+    function recordSmileAgentCheckin(taskId, taskTitle) {
+      playSound('coin');
+      triggerConfetti();
+      const student = students.find(s => String(s.id).toLowerCase() === String(currentStudentId).toLowerCase());
+      if (!student) return;
+      if (!student.smileLogs) student.smileLogs = {};
+      const todayStr = new Date().toISOString().slice(0, 10);
+      if (!student.smileLogs[todayStr]) {
+        student.smileLogs[todayStr] = { tasks: {}, rewardClaimed: false };
+      }
+      const todayLog = student.smileLogs[todayStr];
+
+      if (todayLog.tasks[taskId]) {
+        return showToast("這個好習慣項目今天已經打卡過了喔！", "error");
+      }
+
+      todayLog.tasks[taskId] = true;
+      
+      saveSystemData();
+      renderStudentCard();
+      showToast(`【${taskTitle}】今日打卡成功！🌱`, "success");
+      
+      sendDataToGoogleSheets({ 
+        action: 'updateSmileAgentCloud', 
+        studentId: student.id, 
+        date: todayStr,
+        tasks: todayLog.tasks,
+        rewardClaimed: todayLog.rewardClaimed
+      });
+    }
+
+    function applySmileAgentReward() {
+      playSound('reward');
+      triggerConfetti();
+      const student = students.find(s => String(s.id).toLowerCase() === String(currentStudentId).toLowerCase());
+      if (!student) return;
+      if (!student.smileLogs) student.smileLogs = {};
+      const todayStr = new Date().toISOString().slice(0, 10);
+      if (!student.smileLogs[todayStr]) {
+        student.smileLogs[todayStr] = { tasks: {}, rewardClaimed: false };
+      }
+      const todayLog = student.smileLogs[todayStr];
+
+      if (todayLog.rewardClaimed) {
+        return showToast("今天已經領取過微笑特工獎勵囉！請明天再接再厲！", "error");
+      }
+
+      const checkedCountToday = Object.keys(todayLog.tasks).length;
+      if (checkedCountToday < 5) {
+        return showToast(`今天目前累計打卡 ${checkedCountToday} 次，還差 ${5 - checkedCountToday} 次即可申請驗證！`, "info");
+      }
+
+      todayLog.rewardClaimed = true;
+      
+      saveSystemData();
+      quickAddPoints(student.id, 10, "【好習慣打卡】微笑特工任務達標獎勵");
+      renderStudentCard();
+      
+      showToast("🎉 恭喜通過微笑特工驗證！獲得 +10 積分獎勵！", "success");
+      
+      sendDataToGoogleSheets({ 
+        action: 'updateSmileAgentCloud', 
+        studentId: student.id, 
+        date: todayStr,
+        tasks: todayLog.tasks,
+        rewardClaimed: todayLog.rewardClaimed
+      });
+    }
+
+    function refreshAllViews() {
+      updateStudentSelector();
+      renderStudentCard();
+      renderAdminTable();
+      renderRewardsManager();
+      renderAdminEventsTable();
+      renderHomeCountdown();
+      renderQRCards();
+      const ytInput = document.getElementById('adminYouTubeInput');
+      if (ytInput) ytInput.value = classYouTubeVideoUrl;
+    }
+
+    function updateStudentSelector() {
+      const sel = document.getElementById('studentSelector');
+      if (!sel) return;
+      sel.innerHTML = '';
+      students.sort((a,b) => a.seat - b.seat).forEach(st => {
+        const opt = document.createElement('option');
+        opt.value = st.id;
+        opt.textContent = `[${String(st.seat).padStart(2,'0')} 號] ${st.name} (${st.points} 點)`;
+        if (st.id === currentStudentId) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+
+    function onStudentSelectChange(val) {
+      playSound('click');
+      currentStudentId = val;
+      renderStudentCard();
+    }
+
+    function copyCurrentStudentUrl() {
+      const baseUrl = window.location.origin + window.location.pathname;
+      const targetUrl = `${baseUrl}?sid=${currentStudentId}`;
+      const tempInput = document.createElement('input');
+      tempInput.value = targetUrl;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      try {
+        document.execCommand('copy');
+        showToast("已成功複製該學生的專屬查詢網址！", "success");
+      } catch(e){}
+      document.body.removeChild(tempInput);
+    }
+
+    function renderQRCards() {
+      const grid = document.getElementById('qrCardsGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+      const baseUrl = window.location.origin + window.location.pathname;
+
+      students.sort((a, b) => a.seat - b.seat).forEach(st => {
+        const studentUrl = `${baseUrl}?sid=${st.id}`;
+        const card = document.createElement('div');
+        card.className = "bg-white p-4 rounded-3xl border-2 border-dashed border-amber-300 shadow-sm flex flex-col items-center text-center page-break relative overflow-hidden";
+        const qrId = `qrcode_${st.id}`;
+        
+        let avatarHTML = st.avatar || '🌟';
+        if (avatarHTML.startsWith('data:image/') || avatarHTML.startsWith('http')) {
+          avatarHTML = `<img src="${avatarHTML}" class="w-full h-full object-cover rounded-full">`;
+        }
+
+        card.innerHTML = `
+          <div class="w-full flex justify-between items-center text-xs font-bold text-slate-500 mb-2">
+            <span class="bg-amber-100 text-amber-900 px-2 py-0.5 rounded-md">座號 ${String(st.seat).padStart(2,'0')}</span>
+            <span class="text-slate-400 font-mono">${st.id}</span>
+          </div>
+          <div class="w-10 h-10 mx-auto mb-1 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-xl overflow-hidden shadow-2xs">${avatarHTML}</div>
+          <h4 class="font-black text-slate-800 text-base mb-1 truncate w-full">${st.name}</h4>
+          <div id="${qrId}" class="p-2 bg-white border border-amber-100 rounded-2xl flex items-center justify-center mb-2 min-h-[120px]"></div>
+          <p class="text-[11px] font-bold text-amber-900">向日葵班班 · 掃碼查存摺</p>
+        `;
+        grid.appendChild(card);
+
+        setTimeout(() => {
+          const c = document.getElementById(qrId);
+          if (c && typeof QRCode !== 'undefined') {
+            c.innerHTML = '';
+            new QRCode(c, { text: studentUrl, width: 110, height: 110, colorDark: "#b45309", colorLight: "#ffffff" });
+          }
+        }, 100);
+      });
+    }
+
+    function pokeHeroCharacter() {
+      playSound('levelup');
+      triggerConfetti();
+      const bubble = document.getElementById('heroQuoteBubble');
+      if (!bubble) return;
+      bubble.style.opacity = '1';
+      setTimeout(() => { bubble.style.opacity = '0'; }, 2000);
+    }
+
+    function initApp() {
+      loadSystemData();
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const urlSid = params.get('sid') || params.get('id');
+        if (urlSid) {
+          const match = students.find(s => String(s.id).toLowerCase() === String(urlSid).toLowerCase() || String(s.seat) === String(urlSid));
+          currentStudentId = match ? match.id : urlSid;
+          isStudentPersonalMode = true;
+          applyStudentPersonalModeUI();
+        } else {
+          isStudentPersonalMode = false;
+          if (students.length > 0 && !currentStudentId) {
+            currentStudentId = students[0].id;
+          }
+        }
+      } catch (e) {
+        if (students.length > 0) currentStudentId = students[0].id;
+      }
+      refreshAllViews();
+      setTimeout(() => { fetchFromGoogleSheets(false); }, 400);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initApp);
+    } else {
+      initApp();
+    }
+
+    function applyStudentPersonalModeUI() {
+      const selectorBox = document.getElementById('studentSelectorBox');
+      if (selectorBox) selectorBox.style.display = 'none';
+      const teacherNav = document.getElementById('teacherNavControls');
+      if (teacherNav) teacherNav.classList.add('hidden');
+      const studentRefreshBtn = document.getElementById('studentRefreshBtn');
+      if (studentRefreshBtn) studentRefreshBtn.classList.remove('hidden');
+    }
+
+    async function fetchFromGoogleSheets(showUserFeedback = false) {
+      if (isFetchingGoogleSheet) return;
+      isFetchingGoogleSheet = true;
+
+      const spinner = document.getElementById('syncSpinner');
+      const statusBadge = document.getElementById('syncStatusBadge');
+      if (spinner) spinner.classList.add('animate-spin');
+      if (statusBadge) {
+        statusBadge.className = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500 text-white shadow-sm";
+        statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-white animate-ping"></span> 連線中...`;
+      }
+
+      if (showUserFeedback) showToast("正在向 Google 試算表同步資料...", "info");
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
+        const sep = GAS_API_URL.includes('?') ? '&' : '?';
+        const res = await fetch(`${GAS_API_URL}${sep}_t=${Date.now()}`, {
+          method: 'GET',
+          redirect: 'follow',
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+        const data = await res.json();
+
+        if (data && data.students && Array.isArray(data.students) && data.students.length > 0) {
+          const oldMap = new Map(students.map(s => [String(s.id).toLowerCase(), s]));
+          students = data.students.map((st, idx) => {
+            const rawId = String(st.id || `S${String(idx + 1).padStart(3, '0')}`).trim();
+            const old = oldMap.get(rawId.toLowerCase());
+            return {
+              id: rawId,
+              seat: Number(st.seat || idx + 1),
+              name: String(st.name || `學生${idx + 1}`),
+              role: st.role || old?.role || "",
+              gender: st.gender || old?.gender || "boy",
+              avatar: st.avatar || old?.avatar || "🌟",
+              points: Number(st.points ?? old?.points ?? 0),
+              welcomeMessage: st.welcomeMessage || old?.welcomeMessage || "🌻 歡迎來到向日葵班班！",
+              smileLogs: st.smileLogs || old?.smileLogs || {},
+              history: Array.isArray(st.history) && st.history.length > 0 ? st.history : (old?.history || [])
+            };
+          });
+          if (!currentStudentId && students.length > 0) currentStudentId = students[0].id;
+        }
+
+        if (data && Array.isArray(data.rewards) && data.rewards.length > 0) rewards = data.rewards;
+        if (data && Array.isArray(data.events) && data.events.length > 0) classEvents = data.events;
+        if (data && Array.isArray(data.messages)) messages = data.messages;
+        if (data && data.youtubeVideo) {
+          classYouTubeVideoUrl = data.youtubeVideo;
+        }
+
+        saveSystemData();
+        refreshAllViews();
+
+        if (statusBadge) {
+          statusBadge.className = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500 text-white shadow-sm";
+          statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-white"></span> 試算表已連線`;
+        }
+        if (showUserFeedback) showToast("已成功同步最新資料！✨", "success");
+      } catch (err) {
+        console.warn("試算表同步異常:", err);
+        if (statusBadge) {
+          statusBadge.className = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-500/80 text-white";
+          statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-300"></span> 本地離線模式`;
+        }
+        if (showUserFeedback) showToast("雲端連線逾時，切換為本地暫存", "info");
+      } finally {
+        isFetchingGoogleSheet = false;
+        if (spinner) spinner.classList.remove('animate-spin');
+      }
+    }
+
+    function loadSystemData() {
+      try {
+        const s = localStorage.getItem('class_points_students');
+        if (s) students = JSON.parse(s);
+        const r = localStorage.getItem('class_points_rewards');
+        if (r) rewards = JSON.parse(r);
+        const e = localStorage.getItem('class_points_events');
+        if (e) classEvents = JSON.parse(e);
+        const m = localStorage.getItem('class_points_messages');
+        if (m) messages = JSON.parse(m);
+        const p = localStorage.getItem('class_points_presets');
+        if (p) pointPresets = JSON.parse(p);
+        const pwd = localStorage.getItem('class_points_pwd');
+        if (pwd) adminPassword = pwd;
+        const yt = localStorage.getItem('class_points_youtube');
+        if (yt) classYouTubeVideoUrl = yt;
+      } catch (e) {
+        console.warn("載入本地暫存失敗:", e);
+      }
+    }
+
+    function saveSystemData() {
+      try {
+        localStorage.setItem('class_points_students', JSON.stringify(students));
+        localStorage.setItem('class_points_rewards', JSON.stringify(rewards));
+        localStorage.setItem('class_points_events', JSON.stringify(classEvents));
+        localStorage.setItem('class_points_messages', JSON.stringify(messages));
+        localStorage.setItem('class_points_presets', JSON.stringify(pointPresets));
+        localStorage.setItem('class_points_pwd', adminPassword);
+        localStorage.setItem('class_points_youtube', classYouTubeVideoUrl);
+      } catch (e) {
+        console.warn("LocalStorage 寫入限制:", e);
+      }
+    }
+
+    async function sendDataToGoogleSheets(payload) {
+      try {
+        fetch(GAS_API_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        }).catch(() => {});
+      } catch (e) {
+        console.warn("POST 發送略過:", e);
+      }
+    }
+
+    function getStudentLevel(points) {
+      if (points >= 5000) return { stage: 5, name: "傳奇榮譽大師 👑", next: 5000, prev: 5000 };
+      if (points >= 2000) return { stage: 4, name: "鑽石探險家 💎", next: 5000, prev: 2000 };
+      if (points >= 1000) return { stage: 3, name: "黃金勇者 ⚔️", next: 2000, prev: 1000 };
+      if (points >= 500) return { stage: 2, name: "進階小達人 🌿", next: 1000, prev: 500 };
+      return { stage: 1, name: "初階探索者 🌟", next: 500, prev: 0 };
+    }
+
+    function getHeroCharacterSVG(stage, gender = 'boy') {
+      const isGirl = gender === 'girl';
+      if (isGirl) {
+        if (stage === 1) {
+          return `<svg viewBox="0 0 160 160" class="w-full h-full drop-shadow-md">
+            <circle cx="80" cy="80" r="30" fill="#fed7aa" stroke="#fbbf24" stroke-width="2"/>
+            <path d="M54,65 Q80,50 106,65 Q80,58 54,65 Z" fill="#92400e"/>
+            <circle cx="50" cy="62" r="10" fill="#f43f5e"/><circle cx="110" cy="62" r="10" fill="#f43f5e"/>
+            <circle cx="70" cy="78" r="4.5" fill="#1e293b"/><circle cx="90" cy="78" r="4.5" fill="#1e293b"/>
+            <circle cx="68" cy="76" r="1.5" fill="#ffffff"/><circle cx="88" cy="76" r="1.5" fill="#ffffff"/>
+            <ellipse cx="63" cy="86" rx="5" ry="3" fill="#fda4af"/>
+            <ellipse cx="97" cy="86" rx="5" ry="3" fill="#fda4af"/>
+            <path d="M75,88 Q80,94 85,88" stroke="#e11d48" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            <path d="M62,108 L98,108 L104,136 L56,136 Z" fill="#ec4899"/>
+            <rect x="68" y="136" width="10" height="14" rx="4" fill="#fed7aa"/><rect x="82" y="136" width="10" height="14" rx="4" fill="#fed7aa"/>
+            <rect x="66" y="146" width="13" height="8" rx="3" fill="#f43f5e"/><rect x="81" y="146" width="13" height="8" rx="3" fill="#f43f5e"/>
+            <rect x="34" y="90" width="8" height="38" rx="3" fill="#b45309" transform="rotate(-15 34 90)"/>
+            <polygon points="38,82 34,92 42,92" fill="#78350f"/>
+          </svg>`;
+        }
+        if (stage === 2) {
+          return `<svg viewBox="0 0 160 160" class="w-full h-full drop-shadow-lg">
+            <circle cx="80" cy="80" r="30" fill="#fed7aa"/>
+            <path d="M52,62 Q80,44 108,62 Q80,54 52,62 Z" fill="#b45309"/>
+            <circle cx="48" cy="58" r="8" fill="#10b981"/><circle cx="112" cy="58" r="8" fill="#10b981"/>
+            <circle cx="70" cy="78" r="4.5" fill="#1e293b"/><circle cx="90" cy="78" r="4.5" fill="#1e293b"/>
+            <ellipse cx="63" cy="86" rx="5" ry="3" fill="#fda4af"/><ellipse cx="97" cy="86" rx="5" ry="3" fill="#fda4af"/>
+            <path d="M75,88 Q80,94 85,88" stroke="#e11d48" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            <path d="M60,108 L100,108 L106,136 L54,136 Z" fill="#059669"/>
+            <rect x="66" y="146" width="13" height="8" rx="3" fill="#047857"/><rect x="81" y="146" width="13" height="8" rx="3" fill="#047857"/>
+            <line x1="32" y1="125" x2="32" y2="75" stroke="#38bdf8" stroke-width="5" stroke-linecap="round"/>
+            <circle cx="126" cy="105" r="14" fill="#34d399" stroke="#059669" stroke-width="2"/>
+          </svg>`;
+        }
+        if (stage === 3) {
+          return `<svg viewBox="0 0 160 160" class="w-full h-full drop-shadow-xl">
+            <circle cx="80" cy="80" r="30" fill="#fed7aa"/>
+            <path d="M48,60 Q80,36 112,60 Q80,52 48,60 Z" fill="#d97706"/>
+            <polygon points="80,38 72,50 88,50" fill="#facc15"/><circle cx="80" cy="46" r="3" fill="#ef4444"/>
+            <circle cx="70" cy="78" r="4.5" fill="#1e293b"/><circle cx="90" cy="78" r="4.5" fill="#1e293b"/>
+            <path d="M75,88 Q80,94 85,88" stroke="#e11d48" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            <path d="M58,106 L102,106 L108,136 L52,136 Z" fill="#f59e0b" stroke="#d97706" stroke-width="2"/>
+            <line x1="28" y1="125" x2="28" y2="65" stroke="#fde047" stroke-width="6" stroke-linecap="round"/>
+          </svg>`;
+        }
+        if (stage === 4) {
+          return `<svg viewBox="0 0 160 160" class="w-full h-full drop-shadow-2xl">
+            <circle cx="80" cy="80" r="30" fill="#fed7aa"/>
+            <path d="M46,58 Q80,32 114,58 Q80,48 46,58 Z" fill="#a855f7"/>
+            <polygon points="68,44 80,34 92,44 80,48" fill="#38bdf8"/>
+            <circle cx="70" cy="78" r="4.5" fill="#1e293b"/><circle cx="90" cy="78" r="4.5" fill="#1e293b"/>
+            <path d="M75,88 Q80,94 85,88" stroke="#c026d3" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            <path d="M56,106 L104,106 L110,138 L50,138 Z" fill="#9333ea"/>
+            <line x1="26" y1="130" x2="26" y2="60" stroke="#c084fc" stroke-width="5" stroke-linecap="round"/>
+            <polygon points="26,52 20,60 32,60" fill="#f43f5e"/>
+          </svg>`;
+        }
+        return `<svg viewBox="0 0 160 160" class="w-full h-full drop-shadow-2xl">
+          <g class="wing-anim-l"><path d="M50,90 Q15,60 25,120 Q45,115 52,98 Z" fill="#f472b6" opacity="0.9"/></g>
+          <g class="wing-anim-r"><path d="M110,90 Q145,60 135,120 Q115,115 108,98 Z" fill="#60a5fa" opacity="0.9"/></g>
+          <circle cx="80" cy="80" r="30" fill="#fed7aa"/>
+          <path d="M46,58 Q80,32 114,58 Q80,48 46,58 Z" fill="#fbbf24"/>
+          <circle cx="80" cy="46" r="7" fill="#f59e0b"/><circle cx="80" cy="46" r="4" fill="#78350f"/>
+          <circle cx="70" cy="78" r="4.5" fill="#1e293b"/><circle cx="90" cy="78" r="4.5" fill="#1e293b"/>
+          <path d="M75,88 Q80,94 85,88" stroke="#e11d48" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <path d="M56,106 L104,106 L110,138 L50,138 Z" fill="url(#rainbowG)"/>
+          <defs><linearGradient id="rainbowG" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#ec4899"/><stop offset="50%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#3b82f6"/></linearGradient></defs>
+        </svg>`;
+      }
+
+      if (stage === 1) {
+        return `<svg viewBox="0 0 160 160" class="w-full h-full drop-shadow-md">
+          <circle cx="80" cy="80" r="30" fill="#fed7aa" stroke="#fbbf24" stroke-width="2"/>
+          <path d="M54,68 Q80,56 106,68 L106,60 Q80,48 54,60 Z" fill="#78350f"/>
+          <circle cx="70" cy="78" r="4.5" fill="#1e293b"/><circle cx="90" cy="78" r="4.5" fill="#1e293b"/>
+          <ellipse cx="63" cy="86" rx="4" ry="2.5" fill="#fed7aa"/>
+          <path d="M75,88 Q80,94 85,88" stroke="#ea580c" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <rect x="62" y="108" width="36" height="28" rx="6" fill="#15803d"/>
+          <rect x="68" y="136" width="10" height="14" rx="4" fill="#fed7aa"/><rect x="82" y="136" width="10" height="14" rx="4" fill="#fed7aa"/>
+          <rect x="34" y="90" width="8" height="38" rx="3" fill="#b45309" transform="rotate(-15 34 90)"/>
+          <circle cx="80" cy="46" r="6" fill="#22c55e"/>
+        </svg>`;
+      }
+      if (stage === 2) {
+        return `<svg viewBox="0 0 160 160" class="w-full h-full drop-shadow-lg">
+          <circle cx="80" cy="80" r="30" fill="#fed7aa"/>
+          <path d="M50,65 Q80,50 110,65 L110,56 Q80,44 50,56 Z" fill="#451a03"/>
+          <circle cx="70" cy="78" r="4.5" fill="#1e293b"/><circle cx="90" cy="78" r="4.5" fill="#1e293b"/>
+          <path d="M75,88 Q80,94 85,88" stroke="#ea580c" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <rect x="60" y="108" width="40" height="28" rx="6" fill="#047857"/>
+          <line x1="30" y1="125" x2="30" y2="70" stroke="#94a3b8" stroke-width="6" stroke-linecap="round"/>
+          <circle cx="128" cy="105" r="14" fill="#10b981" stroke="#047857" stroke-width="2"/>
+        </svg>`;
+      }
+      if (stage === 3) {
+        return `<svg viewBox="0 0 160 160" class="w-full h-full drop-shadow-xl">
+          <circle cx="80" cy="80" r="30" fill="#fed7aa"/>
+          <path d="M52,56 Q80,40 108,56 L108,68 L52,68 Z" fill="#92400e"/>
+          <polygon points="80,36 74,48 86,48" fill="#facc15"/>
+          <circle cx="70" cy="78" r="4.5" fill="#1e293b"/><circle cx="90" cy="78" r="4.5" fill="#1e293b"/>
+          <path d="M75,88 Q80,94 85,88" stroke="#ea580c" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <rect x="58" y="106" width="44" height="32" rx="6" fill="#d97706" stroke="#b45309" stroke-width="2"/>
+          <line x1="26" y1="128" x2="26" y2="60" stroke="#facc15" stroke-width="7" stroke-linecap="round"/>
+        </svg>`;
+      }
+      if (stage === 4) {
+        return `<svg viewBox="0 0 160 160" class="w-full h-full drop-shadow-2xl">
+          <circle cx="80" cy="80" r="30" fill="#fed7aa"/>
+          <path d="M50,56 Q80,42 110,56 L110,66 L50,66 Z" fill="#1e3a8a"/>
+          <polygon points="70,44 80,34 90,44 80,48" fill="#38bdf8"/>
+          <circle cx="70" cy="78" r="4.5" fill="#1e293b"/><circle cx="90" cy="78" r="4.5" fill="#1e293b"/>
+          <path d="M75,88 Q80,94 85,88" stroke="#1e40af" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <rect x="58" y="106" width="44" height="32" rx="6" fill="#1d4ed8"/>
+          <line x1="26" y1="130" x2="26" y2="58" stroke="#38bdf8" stroke-width="6" stroke-linecap="round"/>
+          <polygon points="26,48 18,58 34,58" fill="#67e8f9"/>
+        </svg>`;
+      }
+      return `<svg viewBox="0 0 160 160" class="w-full h-full drop-shadow-2xl">
+        <g class="wing-anim-l"><path d="M50,85 Q10,50 20,115 Q45,110 52,95 Z" fill="#f59e0b" opacity="0.9"/></g>
+        <g class="wing-anim-r"><path d="M110,85 Q150,50 140,115 Q115,110 108,95 Z" fill="#f59e0b" opacity="0.9"/></g>
+        <circle cx="80" cy="80" r="30" fill="#fed7aa"/>
+        <path d="M50,56 Q80,42 110,56 L110,66 L50,66 Z" fill="#b45309"/>
+        <polygon points="68,40 80,28 92,40" fill="#f59e0b"/>
+        <circle cx="70" cy="78" r="4.5" fill="#1e293b"/><circle cx="90" cy="78" r="4.5" fill="#1e293b"/>
+        <path d="M75,88 Q80,94 85,88" stroke="#b45309" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <rect x="56" y="106" width="48" height="32" rx="6" fill="#78350f" stroke="#f59e0b" stroke-width="2"/>
+        <line x1="24" y1="132" x2="24" y2="50" stroke="#facc15" stroke-width="7" stroke-linecap="round"/>
+      </svg>`;
+    }
+
+    function switchView(viewName) {
+      const studentView = document.getElementById('studentView');
+      const adminView = document.getElementById('adminView');
+      const printView = document.getElementById('printView');
+      if (studentView) studentView.classList.add('hidden');
+      if (adminView) adminView.classList.add('hidden');
+      if (printView) printView.classList.add('hidden');
+
+      const navStudent = document.getElementById('navStudentBtn');
+      const navAdmin = document.getElementById('navAdminBtn');
+      const navPrint = document.getElementById('navPrintBtn');
+
+      [navStudent, navAdmin, navPrint].forEach(btn => {
+        if (btn) btn.className = "px-3 py-1.5 rounded-xl font-medium transition flex items-center gap-1.5 text-amber-100 hover:text-white hover:bg-white/20";
+      });
+
+      if (viewName === 'student') {
+        if (studentView) studentView.classList.remove('hidden');
+        if (navStudent) navStudent.className = "px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 bg-white text-orange-600 shadow-sm";
+        renderStudentCard();
+        renderHomeCountdown();
+      } else if (viewName === 'admin') {
+        if (!isAdminAuthenticated) {
+          requestAdminAccess('admin');
+          return;
+        }
+        if (adminView) adminView.classList.remove('hidden');
+        if (navAdmin) navAdmin.className = "px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 bg-white text-orange-600 shadow-sm";
+        renderAdminTable();
+        renderRewardsManager();
+        renderAdminEventsTable();
+        renderAdminChatStudentList();
+      } else if (viewName === 'print') {
+        if (!isAdminAuthenticated) {
+          requestAdminAccess('print');
+          return;
+        }
+        if (printView) printView.classList.remove('hidden');
+        if (navPrint) navPrint.className = "px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 bg-white text-orange-600 shadow-sm";
+        renderQRCards();
+      }
+    }
+
+    function requestAdminAccess(targetView) {
+      if (isAdminAuthenticated) {
+        switchView(targetView);
+      } else {
+        const modal = document.getElementById('adminLoginModal');
+        const pwdInput = document.getElementById('inputAdminPassword');
+        if (pwdInput) pwdInput.value = '';
+        if (modal) modal.classList.remove('hidden');
+      }
+    }
+
+    function closeAdminLoginModal() {
+      document.getElementById('adminLoginModal').classList.add('hidden');
+    }
+
+    function verifyAdminPassword(e) {
+      e.preventDefault();
+      const pwd = document.getElementById('inputAdminPassword')?.value.trim();
+      if (pwd === adminPassword) {
+        isAdminAuthenticated = true;
+        closeAdminLoginModal();
+        updateAdminNavState();
+        switchView('admin');
+        showToast("身分驗證成功，歡迎回到教師控制台！", "success");
+      } else {
+        showToast("密碼錯誤，請重新輸入！", "error");
+      }
+    }
+
+    function logoutAdmin() {
+      isAdminAuthenticated = false;
+      updateAdminNavState();
+      switchView('student');
+      showToast("已鎖定教師後台", "info");
+    }
+
+    function updateAdminNavState() {
+      const icon = document.getElementById('adminLockIcon');
+      const logoutBtn = document.getElementById('navLogoutBtn');
+      if (isAdminAuthenticated) {
+        if (icon) icon.className = "fa-solid fa-lock-open text-emerald-300";
+        if (logoutBtn) logoutBtn.classList.remove('hidden');
+      } else {
+        if (icon) icon.className = "fa-solid fa-lock";
+        if (logoutBtn) logoutBtn.classList.add('hidden');
+      }
+    }
+
+    function openChangePasswordModal() {
+      document.getElementById('changePasswordModal')?.classList.remove('hidden');
+    }
+    function closeChangePasswordModal() {
+      document.getElementById('changePasswordModal')?.classList.add('hidden');
+    }
+    function saveNewPassword(e) {
+      e.preventDefault();
+      const curr = document.getElementById('currentPasswordInput').value.trim();
+      const next = document.getElementById('newPasswordInput').value.trim();
+      const confirm = document.getElementById('confirmNewPasswordInput').value.trim();
+      if (curr !== adminPassword) return showToast("目前密碼不正確！", "error");
+      if (next.length < 4) return showToast("新密碼長度至少需要 4 碼！", "error");
+      if (next !== confirm) return showToast("兩次密碼輸入不一致！", "error");
+      adminPassword = next;
+      saveSystemData();
+      closeChangePasswordModal();
+      showToast("後台管理密碼已成功更新！", "success");
+    }
+
+    function switchAdminTab(tab) {
+      ['students', 'messages', 'rewards', 'events'].forEach(t => {
+        const el = document.getElementById(`adminTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        const btn = document.getElementById(`adminTab${t.charAt(0).toUpperCase() + t.slice(1)}Btn`);
+        if (el) el.classList.toggle('hidden', t !== tab);
+        if (btn) {
+          btn.className = t === tab ?
+            "px-4 py-2.5 font-bold text-sm border-b-2 border-orange-500 text-orange-600 flex items-center gap-2 transition whitespace-nowrap" :
+            "px-4 py-2.5 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2 transition whitespace-nowrap";
+        }
+      });
+      if (tab === 'students') renderAdminTable();
+      if (tab === 'messages') renderAdminChatStudentList();
+      if (tab === 'rewards') renderRewardsManager();
+      if (tab === 'events') renderAdminEventsTable();
+    }
+
+    function renderAdminTable() {
+      const tbody = document.getElementById('adminStudentTableBody');
+      const badge = document.getElementById('studentCountBadge');
+      if (badge) badge.textContent = students.length;
+      if (!tbody) return;
+
+      const kw = (document.getElementById('adminSearchInput')?.value || '').trim().toLowerCase();
+      tbody.innerHTML = '';
+      const list = students.filter(s => s.name.toLowerCase().includes(kw) || String(s.seat).includes(kw) || s.id.toLowerCase().includes(kw)).sort((a,b) => a.seat - b.seat);
+
+      list.forEach(st => {
+        const isGirl = st.gender === 'girl';
+        const genderBadge = isGirl ? 
+          `<span class="text-xs bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full font-bold flex items-center justify-center gap-1"><i class="fa-solid fa-venus text-[10px]"></i> 女生</span>` :
+          `<span class="text-xs bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full font-bold flex items-center justify-center gap-1"><i class="fa-solid fa-mars text-[10px]"></i> 男生</span>`;
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-amber-50/40 transition";
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-mono font-bold text-slate-700">#${String(st.seat).padStart(2,'0')} <span class="text-xs text-slate-400">(${st.id})</span></td>
+          <td class="py-3 px-4 font-bold text-slate-800">${st.name}</td>
+          <td class="py-3 px-4 text-center">${genderBadge}</td>
+          <td class="py-3 px-4"><span class="text-xs bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full font-bold">${st.role || '無幹部'}</span></td>
+          <td class="py-3 px-4 text-xs text-slate-500 max-w-[200px] truncate cursor-pointer hover:text-orange-600" onclick="openWelcomeMessageModal('${st.id}'); playSound('click');" title="${st.welcomeMessage || ''}">${st.welcomeMessage || '點擊修改勉勵詞'}</td>
+          <td class="py-3 px-4 text-center font-black text-orange-600 text-base">${st.points}</td>
+          <td class="py-3 px-4 text-center">
+            <div class="inline-flex gap-1 text-xs font-bold">
+              <button onclick="quickAddPoints('${st.id}', 1, '課堂優良發言'); playSound('coin');" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg">+1</button>
+              <button onclick="quickAddPoints('${st.id}', 2, '作業優秀工整'); playSound('coin');" class="bg-amber-50 hover:bg-amber-100 text-amber-800 px-2 py-1 rounded-lg">+2</button>
+              <button onclick="quickAddPoints('${st.id}', -1, '課堂違規扣分'); playSound('click');" class="bg-rose-50 hover:bg-rose-100 text-rose-700 px-2 py-1 rounded-lg">-1</button>
+              <button onclick="openPointModal('${st.id}'); playSound('click');" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded-lg">自訂</button>
+            </div>
+          </td>
+          <td class="py-3 px-4 text-center">
+            <button onclick="openClaimModal('${st.id}'); playSound('click');" class="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 px-2.5 py-1 rounded-xl text-xs font-bold">核銷</button>
+          </td>
+          <td class="py-3 px-4 text-right">
+            <button onclick="openEditStudentModal('${st.id}'); playSound('click');" class="text-slate-600 hover:text-orange-600 p-1"><i class="fa-solid fa-pen-to-square"></i></button>
+            <button onclick="deleteStudent('${st.id}'); playSound('click');" class="text-rose-500 hover:text-rose-700 p-1"><i class="fa-solid fa-trash"></i></button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function quickAddPoints(id, delta, reason) {
+      if (delta > 0) {
+        playSound('coin');
+        triggerConfetti();
+      } else {
+        playSound('click');
+      }
+      const st = students.find(s => s.id === id);
+      if (!st) return;
+      st.points += delta;
+      if (!st.history) st.history = [];
+      const timeStr = new Date().toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+      st.history.push({ time: timeStr, reason, delta });
+      saveSystemData();
+      renderAdminTable();
+      renderStudentCard();
+      showToast(`${st.name} ${delta > 0 ? '+' + delta : delta} 點 (${reason})`, delta > 0 ? "success" : "error");
+      sendDataToGoogleSheets({ action: 'updatePoints', id: st.id, seat: st.seat, points: st.points, reason, delta });
+    }
+
+    function quickBatchAdd(reason, amount) {
+      playSound('coin');
+      triggerConfetti();
+      const timeStr = new Date().toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+      students.forEach(st => {
+        st.points += amount;
+        if (!st.history) st.history = [];
+        st.history.push({ time: timeStr, reason: `[全班] ${reason}`, delta: amount });
+      });
+      saveSystemData();
+      refreshAllViews();
+      showToast(`全班已加 ${amount} 點 (${reason})`, "success");
+    }
+
+    function openPointModal(id) {
+      const st = students.find(s => s.id === id);
+      if (!st) return;
+      document.getElementById('pointStudentId').value = st.id;
+      document.getElementById('pointModalStudentName').textContent = `${st.name} (#${st.seat})`;
+      document.getElementById('pointModalCurrentPoints').textContent = st.points;
+      renderPointPresetsGrid(st.id);
+      document.getElementById('pointModal').classList.remove('hidden');
+    }
+
+    function closePointModal() {
+      document.getElementById('pointModal').classList.add('hidden');
+    }
+
+    function renderPointPresetsGrid(studentId) {
+      const grid = document.getElementById('pointPresetsGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+      pointPresets.forEach(p => {
+        const btn = document.createElement('button');
+        btn.type = "button";
+        btn.className = "flex items-center justify-between p-2 rounded-xl text-xs font-bold border transition " +
+          (p.delta > 0 ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100" : "bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100");
+        btn.innerHTML = `<span>${p.emoji} ${p.reason}</span><span>${p.delta > 0 ? '+' + p.delta : p.delta}</span>`;
+        btn.onclick = () => {
+          quickAddPoints(studentId, p.delta, p.reason);
+          closePointModal();
+        };
+        grid.appendChild(btn);
+      });
+    }
+
+    function submitPointAdjustment(e) {
+      e.preventDefault();
+      const id = document.getElementById('pointStudentId').value;
+      const delta = parseInt(document.getElementById('pointChangeAmount').value, 10);
+      const reason = document.getElementById('pointReason').value.trim();
+      if (isNaN(delta) || !reason) return showToast("請輸入完整數值與原因", "error");
+      quickAddPoints(id, delta, reason);
+      closePointModal();
+    }
+
+    function openPresetsManageModal() {
+      renderPresetsManager();
+      document.getElementById('presetsManageModal')?.classList.remove('hidden');
+    }
+    function closePresetsManageModal() {
+      document.getElementById('presetsManageModal')?.classList.add('hidden');
+    }
+    function renderPresetsManager() {
+      const box = document.getElementById('presetsListContainer');
+      if (!box) return;
+      box.innerHTML = '';
+      pointPresets.forEach((p, idx) => {
+        const div = document.createElement('div');
+        div.className = "flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs";
+        div.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span>${p.emoji}</span><span class="font-bold text-slate-700">${p.reason}</span>
+            <span class="px-2 py-0.5 rounded-full font-bold ${p.delta > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">${p.delta > 0 ? '+' + p.delta : p.delta}</span>
+          </div>
+          <button onclick="deletePresetItem(${idx}); playSound('click');" class="text-rose-500 hover:text-rose-700 p-1"><i class="fa-solid fa-trash"></i></button>
+        `;
+        box.appendChild(div);
+      });
+    }
+    function addNewPresetItem(e) {
+      e.preventDefault();
+      const emoji = document.getElementById('newPresetEmoji').value.trim() || "⭐";
+      const reason = document.getElementById('newPresetReason').value.trim();
+      const delta = parseInt(document.getElementById('newPresetDelta').value, 10) || 1;
+      pointPresets.push({ id: `P${Date.now()}`, emoji, reason, delta });
+      saveSystemData();
+      renderPresetsManager();
+      showToast("已成功新增快捷加扣分項目！", "success");
+    }
+    function deletePresetItem(idx) {
+      pointPresets.splice(idx, 1);
+      saveSystemData();
+      renderPresetsManager();
+    }
+    function resetDefaultPointPresets() {
+      pointPresets = JSON.parse(JSON.stringify(DEFAULT_POINT_PRESETS));
+      saveSystemData();
+      renderPresetsManager();
+      showToast("已重設為預設項目", "info");
+    }
+
+    function openWelcomeMessageModal(studentId) {
+      const st = students.find(s => s.id === studentId);
+      if (!st) return;
+      document.getElementById('welcomeModalStudentId').value = st.id;
+      document.getElementById('welcomeModalStudentName').textContent = `${st.name} (#${st.seat})`;
+      document.getElementById('welcomeModalInput').value = st.welcomeMessage || "🌻 歡迎來到向日葵班班！";
+      document.getElementById('welcomeMessageModal')?.classList.remove('hidden');
+    }
+    function closeWelcomeMessageModal() {
+      document.getElementById('welcomeMessageModal')?.classList.add('hidden');
+    }
+    function saveWelcomeMessage(e) {
+      e.preventDefault();
+      const id = document.getElementById('welcomeModalStudentId').value;
+      const msg = document.getElementById('welcomeModalInput').value.trim();
+      const st = students.find(s => s.id === id);
+      if (!st) return;
+      st.welcomeMessage = msg;
+      saveSystemData();
+      renderAdminTable();
+      renderStudentCard();
+      closeWelcomeMessageModal();
+      showToast("已更新專屬勉勵詞！", "success");
+      sendDataToGoogleSheets({ action: 'updateWelcomeMessage', id: st.id, seat: st.seat, welcomeMessage: msg });
+    }
+
+    function openAddStudentModal() {
+      document.getElementById('modalTitle').textContent = "新增學生";
+      document.getElementById('editOriginalId').value = "";
+      document.getElementById('inputSeat').value = students.length + 1;
+      document.getElementById('inputId').value = `S${String(students.length + 1).padStart(3, '0')}`;
+      document.getElementById('inputName').value = "";
+      const genderRadios = document.getElementsByName('inputGender');
+      if (genderRadios.length > 0) genderRadios[0].checked = true;
+      document.getElementById('inputRole').value = "";
+      document.getElementById('inputWelcomeMessage').value = "🌻 歡迎來到向日葵班班！";
+      document.getElementById('inputAvatar').value = "🌟";
+      document.getElementById('inputPoints').value = "0";
+      document.getElementById('studentModal')?.classList.remove('hidden');
+    }
+
+    function openEditStudentModal(id) {
+      const st = students.find(s => s.id === id);
+      if (!st) return;
+      document.getElementById('modalTitle').textContent = "編輯學生";
+      document.getElementById('editOriginalId').value = st.id;
+      document.getElementById('inputSeat').value = st.seat;
+      document.getElementById('inputId').value = st.id;
+      document.getElementById('inputName').value = st.name;
+      const isGirl = st.gender === 'girl';
+      const genderRadios = document.getElementsByName('inputGender');
+      if (genderRadios.length >= 2) {
+        genderRadios[0].checked = !isGirl;
+        genderRadios[1].checked = isGirl;
+      }
+      document.getElementById('inputRole').value = st.role || "";
+      document.getElementById('inputWelcomeMessage').value = st.welcomeMessage || "";
+      document.getElementById('inputAvatar').value = st.avatar || "🌟";
+      document.getElementById('inputPoints').value = st.points;
+      document.getElementById('studentModal')?.classList.remove('hidden');
+    }
+
+    function closeStudentModal() {
+      document.getElementById('studentModal')?.classList.add('hidden');
+    }
+
+    function saveStudent(e) {
+      e.preventDefault();
+      const origId = document.getElementById('editOriginalId').value;
+      const seat = parseInt(document.getElementById('inputSeat').value, 10);
+      const id = document.getElementById('inputId').value.trim();
+      const name = document.getElementById('inputName').value.trim();
+      const gender = document.querySelector('input[name="inputGender"]:checked')?.value || 'boy';
+      const role = document.getElementById('inputRole').value.trim();
+      const welcome = document.getElementById('inputWelcomeMessage').value.trim();
+      const avatar = document.getElementById('inputAvatar').value.trim() || "🌟";
+      const points = parseInt(document.getElementById('inputPoints').value, 10) || 0;
+
+      if (origId) {
+        const idx = students.findIndex(s => s.id === origId);
+        if (idx !== -1) {
+          students[idx] = { ...students[idx], seat, id, name, gender, role, welcomeMessage: welcome, avatar, points };
+        }
+      } else {
+        students.push({ id, seat, name, gender, role, welcomeMessage: welcome, avatar, points, smileLogs: {}, history: [] });
+      }
+      saveSystemData();
+      closeStudentModal();
+      refreshAllViews();
+      showToast(`已儲存學生 ${name} (${gender === 'girl' ? '👧 女生' : '👦 男生'})`, "success");
+      sendDataToGoogleSheets({ action: 'saveStudent', origId, id, seat, name, gender, role, points, avatar, welcomeMessage: welcome });
+    }
+
+    function deleteStudent(id) {
+      students = students.filter(s => s.id !== id);
+      saveSystemData();
+      refreshAllViews();
+      showToast("已刪除學生資料", "info");
+      sendDataToGoogleSheets({ action: 'deleteStudent', id });
+    }
+
+    function renderRewardsManager() {
+      const box = document.getElementById('rewardsGridContainer');
+      const badge = document.getElementById('rewardCountBadge');
+      if (badge) badge.textContent = rewards.length;
+      if (!box) return;
+      box.innerHTML = '';
+      rewards.forEach(rw => {
+        const div = document.createElement('div');
+        div.className = "bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between";
+        div.innerHTML = `
+          <div>
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-2xl">${rw.emoji}</span>
+              <span class="bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full text-xs font-bold">${rw.points} 點</span>
+            </div>
+            <h4 class="font-bold text-slate-800 text-sm">${rw.title}</h4>
+            <p class="text-xs text-slate-500 mt-1">${rw.desc || '無特定規則'}</p>
+          </div>
+          <div class="flex justify-end gap-2 mt-4 pt-3 border-t border-slate-100">
+            <button onclick="openEditRewardModal('${rw.id}'); playSound('click');" class="text-xs text-slate-600 hover:text-orange-600 font-bold">編輯</button>
+            <button onclick="deleteRewardItem('${rw.id}'); playSound('click');" class="text-xs text-rose-500 hover:text-rose-700 font-bold">刪除</button>
+          </div>
+        `;
+        box.appendChild(div);
+      });
+    }
+    function openAddRewardModal() {
+      document.getElementById('rewardModalTitle').textContent = "新增獎勵";
+      document.getElementById('editRewardId').value = "";
+      document.getElementById('rewardEmojiInput').value = "🎁";
+      document.getElementById('rewardPointsInput').value = "30";
+      document.getElementById('rewardTitleInput').value = "";
+      document.getElementById('rewardDescInput').value = "";
+      document.getElementById('rewardModal')?.classList.remove('hidden');
+    }
+    function openEditRewardModal(id) {
+      const rw = rewards.find(r => r.id === id);
+      if (!rw) return;
+      document.getElementById('rewardModalTitle').textContent = "編輯獎勵";
+      document.getElementById('editRewardId').value = rw.id;
+      document.getElementById('rewardEmojiInput').value = rw.emoji;
+      document.getElementById('rewardPointsInput').value = rw.points;
+      document.getElementById('rewardTitleInput').value = rw.title;
+      document.getElementById('rewardDescInput').value = rw.desc || "";
+      document.getElementById('rewardModal')?.classList.remove('hidden');
+    }
+    function closeRewardModal() {
+      document.getElementById('rewardModal')?.classList.add('hidden');
+    }
+    function saveRewardItem(e) {
+      e.preventDefault();
+      const origId = document.getElementById('editRewardId').value;
+      const emoji = document.getElementById('rewardEmojiInput').value.trim() || "🎁";
+      const points = parseInt(document.getElementById('rewardPointsInput').value, 10) || 10;
+      const title = document.getElementById('rewardTitleInput').value.trim();
+      const desc = document.getElementById('rewardDescInput').value.trim();
+      if (origId) {
+        const idx = rewards.findIndex(r => r.id === origId);
+        if (idx !== -1) rewards[idx] = { id: origId, emoji, points, title, desc };
+      } else {
+        rewards.push({ id: `R${Date.now()}`, emoji, points, title, desc });
+      }
+      saveSystemData();
+      closeRewardModal();
+      renderRewardsManager();
+      renderStudentCard();
+      sendDataToGoogleSheets({ action: 'saveRewards', rewards });
+    }
+    function deleteRewardItem(id) {
+      rewards = rewards.filter(r => r.id !== id);
+      saveSystemData();
+      renderRewardsManager();
+      renderStudentCard();
+      sendDataToGoogleSheets({ action: 'saveRewards', rewards });
+    }
+
+    function openClaimModal(studentId) {
+      const st = students.find(s => s.id === studentId);
+      if (!st) return;
+      if (rewards.length === 0) return showToast("目前尚無獎勵項目可核銷", "error");
+      document.getElementById('claimStudentId').value = st.id;
+      document.getElementById('claimStudentName').textContent = `${st.name} (#${st.seat})`;
+      document.getElementById('claimCurrentPoints').textContent = `${st.points} 點`;
+      const sel = document.getElementById('claimRewardSelect');
+      sel.innerHTML = '';
+      rewards.forEach(rw => {
+        const opt = document.createElement('option');
+        opt.value = rw.id;
+        opt.textContent = `${rw.emoji} ${rw.title} (扣 ${rw.points} 點)`;
+        sel.appendChild(opt);
+      });
+      onClaimRewardSelected(rewards[0].id);
+      document.getElementById('claimModal')?.classList.remove('hidden');
+    }
+    function closeClaimModal() {
+      document.getElementById('claimModal')?.classList.add('hidden');
+    }
+    function onClaimRewardSelected(rewardId) {
+      const rw = rewards.find(r => r.id === rewardId);
+      if (rw) document.getElementById('claimDeductAmount').textContent = rw.points;
+    }
+    function submitClaimReward(e) {
+      e.preventDefault();
+      const studentId = document.getElementById('claimStudentId').value;
+      const rewardId = document.getElementById('claimRewardSelect').value;
+      const rw = rewards.find(r => r.id === rewardId);
+      if (!rw) return;
+      quickAddPoints(studentId, -rw.points, `[兌換獎勵] ${rw.title}`);
+      closeClaimModal();
+    }
+
+    function renderStudentRewardsList(student) {
+      const box = document.getElementById('studentRewardList');
+      if (!box) return;
+      box.innerHTML = '';
+      if (rewards.length === 0) {
+        box.innerHTML = `<div class="text-xs text-slate-400 py-2 text-center">目前無可兌換項目</div>`;
+        return;
+      }
+      rewards.forEach(rw => {
+        const can = student.points >= rw.points;
+        const div = document.createElement('div');
+        div.className = `p-3 rounded-2xl border flex items-center justify-between gap-2 ${can ? 'bg-emerald-50/70 border-emerald-200' : 'bg-slate-50 border-slate-200 opacity-80'}`;
+        div.innerHTML = `
+          <div class="flex items-center gap-3 overflow-hidden">
+            <span class="text-2xl">${rw.emoji}</span>
+            <div class="truncate">
+              <p class="font-bold text-xs text-slate-800 truncate">${rw.title}</p>
+              <p class="text-[10px] text-slate-400 truncate">${rw.desc || '達標即可向老師兌換'}</p>
+            </div>
+          </div>
+          <div class="text-right flex-shrink-0">
+            <span class="inline-block px-2.5 py-1 rounded-full text-xs font-bold ${can ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'}">${rw.points} PTS</span>
+          </div>
+        `;
+        box.appendChild(div);
+      });
+    }
+
+    function renderStudentHistoryList(student) {
+      const box = document.getElementById('cardHistoryList');
+      if (!box) return;
+      box.innerHTML = '';
+      if (!student.history || student.history.length === 0) {
+        box.innerHTML = `<div class="text-xs text-slate-400 py-3 text-center">尚無點數異動紀錄</div>`;
+        return;
+      }
+      student.history.slice(-5).reverse().forEach(h => {
+        const div = document.createElement('div');
+        div.className = "flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs";
+        div.innerHTML = `
+          <div><p class="font-bold text-slate-700">${h.reason}</p><p class="text-[10px] text-slate-400">${h.time}</p></div>
+          <span class="font-bold px-2 py-0.5 rounded-lg ${h.delta > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">${h.delta > 0 ? '+' + h.delta : h.delta}</span>
+        `;
+        box.appendChild(div);
+      });
+    }
+
+    function renderStudentChatMessages(student) {
+      const box = document.getElementById('studentChatMessagesList');
+      if (!box) return;
+      box.innerHTML = '';
+      const list = messages.filter(m => String(m.studentId).toLowerCase() === String(student.id).toLowerCase() || String(m.studentId) === String(student.seat));
+      if (list.length === 0) {
+        box.innerHTML = `<div class="text-xs text-slate-400 py-4 text-center">尚無留言，歡迎與老師傳遞訊息！</div>`;
+        return;
+      }
+      list.forEach(m => {
+        const isTeacher = m.sender === '老師';
+        const div = document.createElement('div');
+        div.className = `flex ${isTeacher ? 'justify-start' : 'justify-end'}`;
+        div.innerHTML = `
+          <div class="max-w-[85%] rounded-2xl p-2.5 text-xs shadow-2xs ${isTeacher ? 'bg-white text-slate-800 border border-amber-200' : 'bg-orange-500 text-white'}">
+            <div class="flex justify-between items-center gap-2 mb-1 text-[10px] ${isTeacher ? 'text-amber-800 font-bold' : 'text-orange-100'}">
+              <span>${m.sender}</span><span>${m.time}</span>
+            </div>
+            <p class="leading-relaxed break-words">${m.content}</p>
+          </div>
+        `;
+        box.appendChild(div);
+      });
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function submitStudentMessage(e) {
+      e.preventDefault();
+      const input = document.getElementById('studentChatInput');
+      const text = input.value.trim();
+      if (!text) return;
+      const role = document.querySelector('input[name="senderRole"]:checked')?.value || "學生";
+      const timeStr = new Date().toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+      const msg = { id: `MSG_${Date.now()}`, studentId: currentStudentId, sender: role, content: text, time: timeStr, isRead: false };
+      messages.push(msg);
+      input.value = '';
+      saveSystemData();
+      renderStudentCard();
+      sendDataToGoogleSheets({ action: 'addMessage', message: msg });
+    }
+
+    function renderAdminChatStudentList() {
+      const box = document.getElementById('adminChatStudentList');
+      if (!box) return;
+      box.innerHTML = '';
+      students.forEach(st => {
+        const unread = messages.filter(m => (String(m.studentId).toLowerCase() === String(st.id).toLowerCase() || String(m.studentId) === String(st.seat)) && !m.isRead && m.sender !== '老師').length;
+        const btn = document.createElement('button');
+        btn.type = "button";
+        btn.className = `w-full text-left p-2.5 rounded-2xl border transition flex items-center justify-between ${currentAdminChatStudentId === st.id ? 'bg-orange-50 border-orange-300' : 'bg-slate-50 border-slate-200 hover:bg-amber-50/50'}`;
+        btn.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-xs text-slate-800">${st.name} <span class="text-[10px] text-slate-400 font-mono">#${st.seat}</span></span>
+          </div>
+          ${unread > 0 ? `<span class="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">${unread}</span>` : ''}
+        `;
+        btn.onclick = () => { playSound('click'); selectAdminChatStudent(st.id); };
+        box.appendChild(btn);
+      });
+      if (currentAdminChatStudentId) selectAdminChatStudent(currentAdminChatStudentId);
+    }
+
+    function selectAdminChatStudent(id) {
+      currentAdminChatStudentId = id;
+      const st = students.find(s => s.id === id);
+      if (!st) return;
+      document.getElementById('adminChatStudentName').textContent = `${st.name} 的專屬聯絡對話`;
+      document.getElementById('adminChatStudentInfo').textContent = `學號: ${st.id} · 目前積分: ${st.points} PTS`;
+
+      const box = document.getElementById('adminChatMessagesBox');
+      box.innerHTML = '';
+      const list = messages.filter(m => String(m.studentId).toLowerCase() === String(st.id).toLowerCase() || String(m.studentId) === String(st.seat));
+
+      list.forEach(m => {
+        if (!m.isRead && m.sender !== '老師') m.isRead = true;
+        const isTeacher = m.sender === '老師';
+        const div = document.createElement('div');
+        div.className = `flex ${isTeacher ? 'justify-end' : 'justify-start'}`;
+        div.innerHTML = `
+          <div class="max-w-[80%] rounded-2xl p-2.5 text-xs ${isTeacher ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-800'}">
+            <div class="flex justify-between items-center gap-2 mb-1 text-[10px] ${isTeacher ? 'text-orange-100' : 'text-slate-400'}">
+              <span>${m.sender}</span><span>${m.time}</span>
+              <button onclick="deleteMessage('${m.id}'); playSound('click');" class="hover:text-rose-300 ml-1"><i class="fa-solid fa-trash text-[9px]"></i></button>
+            </div>
+            <p class="leading-relaxed break-words">${m.content}</p>
+          </div>
+        `;
+        box.appendChild(div);
+      });
+      box.scrollTop = box.scrollHeight;
+      saveSystemData();
+      sendDataToGoogleSheets({ action: 'markMessagesRead', studentId: st.id, seat: st.seat });
+    }
+
+    function submitAdminReply(e) {
+      e.preventDefault();
+      if (!currentAdminChatStudentId) return showToast("請先點選左側學生", "info");
+      const input = document.getElementById('adminReplyInput');
+      const text = input.value.trim();
+      if (!text) return;
+      const timeStr = new Date().toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+      const msg = { id: `MSG_${Date.now()}`, studentId: currentAdminChatStudentId, sender: "老師", content: text, time: timeStr, isRead: true };
+      messages.push(msg);
+      input.value = '';
+      saveSystemData();
+      selectAdminChatStudent(currentAdminChatStudentId);
+      sendDataToGoogleSheets({ action: 'addMessage', message: msg });
+    }
+
+    function markCurrentChatRead() {
+      if (!currentAdminChatStudentId) return;
+      messages.forEach(m => {
+        if (String(m.studentId).toLowerCase() === String(currentAdminChatStudentId).toLowerCase()) m.isRead = true;
+      });
+      saveSystemData();
+      selectAdminChatStudent(currentAdminChatStudentId);
+    }
+    function setAdminReplyPreset(txt) {
+      const input = document.getElementById('adminReplyInput');
+      if (input) input.value = txt;
+    }
+    function deleteMessage(id) {
+      messages = messages.filter(m => m.id !== id);
+      saveSystemData();
+      if (currentAdminChatStudentId) selectAdminChatStudent(currentAdminChatStudentId);
+      sendDataToGoogleSheets({ action: 'deleteMessage', id });
+    }
+
+    function renderHomeCountdown() {
+      const dateEl = document.getElementById('currentDateDisplay');
+      if (dateEl) dateEl.textContent = new Date().toLocaleDateString('zh-TW');
+      const titleEl = document.getElementById('countdownEventTitle');
+      const descEl = document.getElementById('countdownEventDesc');
+      const daysEl = document.getElementById('countdownDaysNum');
+      if (!classEvents || classEvents.length === 0) {
+        if (titleEl) titleEl.textContent = "目前無班級重要日程";
+        if (daysEl) daysEl.textContent = "0";
+        return;
+      }
+      const upcoming = [...classEvents].sort((a,b) => new Date(a.date) - new Date(b.date)).find(ev => (new Date(ev.date) - new Date().setHours(0,0,0,0)) >= 0) || classEvents[0];
+      const diff = Math.ceil((new Date(upcoming.date) - new Date().setHours(0,0,0,0)) / (1000 * 60 * 60 * 24));
+      if (titleEl) titleEl.textContent = upcoming.title;
+      if (descEl) descEl.textContent = upcoming.desc || `日期：${upcoming.date}`;
+      if (daysEl) daysEl.textContent = Math.max(0, diff);
+
+      const box = document.getElementById('homeCalendarList');
+      if (!box) return;
+      box.innerHTML = '';
+      classEvents.forEach(ev => {
+        const d = Math.ceil((new Date(ev.date) - new Date().setHours(0,0,0,0)) / (1000 * 60 * 60 * 24));
+        const div = document.createElement('div');
+        div.className = "bg-white/10 px-3 py-1.5 rounded-xl border border-white/15 flex justify-between items-center text-xs";
+        div.innerHTML = `<span>${ev.date} ${ev.title}</span><span class="font-bold">${d >= 0 ? d + ' 天後' : '已結束'}</span>`;
+        box.appendChild(div);
+      });
+    }
+
+    function toggleHomeCalendarList() {
+      isHomeCalendarExpanded = !isHomeCalendarExpanded;
+      document.getElementById('homeCalendarList')?.classList.toggle('hidden', !isHomeCalendarExpanded);
+    }
+
+    function renderAdminEventsTable() {
+      const tbody = document.getElementById('adminEventsTableBody');
+      const badge = document.getElementById('eventCountBadge');
+      if (badge) badge.textContent = classEvents.length;
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      classEvents.forEach(ev => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-amber-50/40 transition text-xs";
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-mono font-bold">${ev.date}</td>
+          <td class="py-3 px-4 font-bold text-orange-600">${Math.ceil((new Date(ev.date) - new Date().setHours(0,0,0,0))/(1000*60*60*24))} 天</td>
+          <td class="py-3 px-4 font-bold text-slate-800">${ev.title}</td>
+          <td class="py-3 px-4"><span class="bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full font-bold">${ev.tag}</span></td>
+          <td class="py-3 px-4 text-slate-500">${ev.desc || ''}</td>
+          <td class="py-3 px-4 text-right">
+            <button onclick="deleteEventItem('${ev.id}'); playSound('click');" class="text-rose-500 hover:text-rose-700 font-bold">刪除</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+    function openAddEventModal() {
+      document.getElementById('eventModalTitle').textContent = "新增事件";
+      document.getElementById('editEventId').value = "";
+      document.getElementById('eventDateInput').value = new Date().toISOString().slice(0, 10);
+      document.getElementById('eventTitleInput').value = "";
+      document.getElementById('eventDescInput').value = "";
+      document.getElementById('eventModal')?.classList.remove('hidden');
+    }
+    function closeEventModal() {
+      document.getElementById('eventModal')?.classList.add('hidden');
+    }
+    function saveEventItem(e) {
+      e.preventDefault();
+      const date = document.getElementById('eventDateInput').value;
+      const tag = document.getElementById('eventTagInput').value;
+      const title = document.getElementById('eventTitleInput').value.trim();
+      const desc = document.getElementById('eventDescInput').value.trim();
+      classEvents.push({ id: `EV${Date.now()}`, date, tag, title, desc });
+      saveSystemData();
+      closeEventModal();
+      renderAdminEventsTable();
+      renderHomeCountdown();
+      sendDataToGoogleSheets({ action: 'saveEvents', events: classEvents });
+    }
+    function deleteEventItem(id) {
+      classEvents = classEvents.filter(e => e.id !== id);
+      saveSystemData();
+      renderAdminEventsTable();
+      renderHomeCountdown();
+      sendDataToGoogleSheets({ action: 'saveEvents', events: classEvents });
+    }
+
+    function openStudentAvatarModal() {
+      document.getElementById('avatarModal')?.classList.remove('hidden');
+    }
+    function closeStudentAvatarModal() {
+      document.getElementById('avatarModal')?.classList.add('hidden');
+    }
+    function setAvatarPreset(emoji) {
+      tempSelectedAvatar = emoji;
+      document.getElementById('avatarPreviewSpan').textContent = emoji;
+    }
+    function handleAvatarFileUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        tempSelectedAvatar = evt.target.result;
+        document.getElementById('avatarPreviewSpan').innerHTML = `<img src="${tempSelectedAvatar}" class="w-full h-full object-cover rounded-full">`;
+      };
+      reader.readAsDataURL(file);
+    }
+    function saveSelectedAvatar() {
+      const st = students.find(s => s.id === currentStudentId);
+      if (!st) return;
+      st.avatar = tempSelectedAvatar;
+      saveSystemData();
+      renderStudentCard();
+      renderAdminTable();
+      closeStudentAvatarModal();
+      showToast("個人頭像已成功保存！", "success");
+      sendDataToGoogleSheets({ action: 'updateAvatar', id: st.id, avatar: st.avatar });
+    }
+
+    function exportData() {
+      const data = {
+        students, rewards, classEvents, messages, pointPresets, adminPassword, classYouTubeVideoUrl,
+        exportDate: new Date().toISOString()
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sunflower_class_backup_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("系統完整資料備份已匯出！", "success");
+    }
+
+    function importData(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const parsed = JSON.parse(evt.target.result);
+          if (parsed.students) students = parsed.students;
+          if (parsed.rewards) rewards = parsed.rewards;
+          if (parsed.classEvents) classEvents = parsed.classEvents;
+          if (parsed.messages) messages = parsed.messages;
+          if (parsed.pointPresets) pointPresets = parsed.pointPresets;
+          if (parsed.classYouTubeVideoUrl) classYouTubeVideoUrl = parsed.classYouTubeVideoUrl;
+          saveSystemData();
+          refreshAllViews();
+          showToast("已成功匯入備份資料！", "success");
+        } catch(err) {
+          showToast("檔案格式錯誤，無法匯入！", "error");
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    }
+
+    function showToast(msg, type = "success") {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+      const toastIcon = document.getElementById('toastIcon');
+      if (!toast || !toastMsg) return;
+      toastMsg.textContent = msg;
+      if (type === "success" && toastIcon) toastIcon.className = "fa-solid fa-circle-check text-emerald-400 text-lg flex-shrink-0";
+      else if (type === "error" && toastIcon) toastIcon.className = "fa-solid fa-triangle-exclamation text-rose-400 text-lg flex-shrink-0";
+      else if (toastIcon) toastIcon.className = "fa-solid fa-circle-info text-sky-400 text-lg flex-shrink-0";
+
+      toast.classList.remove('translate-y-24', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-24', 'opacity-0');
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
